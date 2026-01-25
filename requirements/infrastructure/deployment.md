@@ -287,7 +287,7 @@ sleep 10
 
 # Загрузка модели Ollama
 echo "🤖 Pulling LLM model..."
-docker compose exec ollama ollama pull llama3.1:8b
+docker compose exec ollama ollama pull qwen2.5:7b
 
 echo "✅ CarsAI is running at http://localhost"
 ```
@@ -324,7 +324,7 @@ DB_PASSWORD=your_secure_password
 JWT_SECRET=your-256-bit-secret-key-here-minimum-32-characters
 
 # LLM
-LLM_MODEL=llama3.1:8b
+LLM_MODEL=qwen2.5:7b
 ```
 
 ---

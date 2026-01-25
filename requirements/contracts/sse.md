@@ -1,6 +1,6 @@
 # SSE Протокол стриминга
 
-Server-Sent Events используется для потоковой передачи ответов ИИ-ассистента.
+Server-Sent Events используется для потоковой передачи ответов ассистента.
 
 ---
 
@@ -29,37 +29,41 @@ event: message_start
 data: {"message_id": "msg_789", "chat_id": "chat_123"}
 ```
 
+### status
+
+Текущий этап обработки (информационное событие).
+
+```
+event: status
+data: {"stage": "extracting"}
+
+event: status
+data: {"stage": "searching"}
+
+event: status
+data: {"stage": "formatting"}
+```
+
+**Возможные stage:**
+| Stage | Описание |
+|-------|----------|
+| extracting | Извлечение критериев из запроса |
+| searching | Поиск автомобилей в базе |
+| formatting | Форматирование ответа |
+
 ### content_delta
 
 Порция текста ответа (приходит много раз).
 
 ```
 event: content_delta
-data: {"delta": "Отличный"}
+data: {"delta": "Нашёл "}
 
 event: content_delta
-data: {"delta": " выбор! Для "}
+data: {"delta": "5 вариантов "}
 
 event: content_delta
-data: {"delta": "уточнения..."}
-```
-
-### tool_call
-
-ИИ вызывает инструмент (поиск по базе).
-
-```
-event: tool_call
-data: {"id": "call_001", "name": "search_cars", "arguments": {"max_price": 3000000, "body_type": "suv"}}
-```
-
-### tool_result
-
-Результат выполнения инструмента (информационно для UI).
-
-```
-event: tool_result
-data: {"id": "call_001", "result": {"count": 15, "sample": [{"brand": "Toyota", "model": "RAV4"}]}}
+data: {"delta": "в вашем бюджете:"}
 ```
 
 ### message_end
@@ -68,13 +72,12 @@ data: {"id": "call_001", "result": {"count": 15, "sample": [{"brand": "Toyota", 
 
 ```
 event: message_end
-data: {"message_id": "msg_789", "finish_reason": "stop", "usage": {"prompt_tokens": 450, "completion_tokens": 120}}
+data: {"message_id": "msg_789", "finish_reason": "stop"}
 ```
 
 **finish_reason:**
 - `stop` — нормальное завершение
 - `length` — достигнут лимит токенов
-- `tool_calls` — ответ содержит только вызов инструмента (продолжение следует)
 
 ### error
 
@@ -106,6 +109,8 @@ data: {}
 
 ## Пример полной сессии
 
+### Успешный поиск
+
 ```
 → GET /api/v1/chats/chat_123/stream?message_id=msg_456
 ← Accept: text/event-stream
@@ -113,26 +118,73 @@ data: {}
 event: message_start
 data: {"message_id": "msg_789", "chat_id": "chat_123"}
 
-event: content_delta
-data: {"delta": "Понял, вы ищете "}
+event: status
+data: {"stage": "extracting"}
+
+event: status
+data: {"stage": "searching"}
+
+event: status
+data: {"stage": "formatting"}
 
 event: content_delta
-data: {"delta": "кроссовер до 3 млн. "}
-
-event: tool_call
-data: {"id": "call_001", "name": "search_cars", "arguments": {"max_price": 3000000, "body_type": "suv"}}
-
-event: tool_result
-data: {"id": "call_001", "result": {"count": 24}}
+data: {"delta": "Нашёл "}
 
 event: content_delta
-data: {"delta": "Нашёл 24 варианта. "}
+data: {"delta": "3 кроссовера "}
 
 event: content_delta
-data: {"delta": "Уточните тип двигателя..."}
+data: {"delta": "в вашем бюджете:\n\n"}
+
+event: content_delta
+data: {"delta": "1. **Toyota RAV4 2023** — 2 900 000 ₽\n"}
+
+event: content_delta
+data: {"delta": "   2.5 л бензин, 199 л.с., автомат\n\n"}
+
+event: content_delta
+data: {"delta": "Хотите подробнее о каком-то варианте?"}
 
 event: message_end
 data: {"message_id": "msg_789", "finish_reason": "stop"}
+```
+
+### Требуется уточнение (нет поиска)
+
+```
+event: message_start
+data: {"message_id": "msg_790", "chat_id": "chat_123"}
+
+event: status
+data: {"stage": "extracting"}
+
+event: content_delta
+data: {"delta": "Помогу подобрать автомобиль! "}
+
+event: content_delta
+data: {"delta": "Подскажите, пожалуйста:\n"}
+
+event: content_delta
+data: {"delta": "1. Какой бюджет вы рассматриваете?\n"}
+
+event: content_delta
+data: {"delta": "2. Какой тип кузова предпочитаете?"}
+
+event: message_end
+data: {"message_id": "msg_790", "finish_reason": "stop"}
+```
+
+### Ошибка
+
+```
+event: message_start
+data: {"message_id": "msg_791", "chat_id": "chat_123"}
+
+event: status
+data: {"stage": "extracting"}
+
+event: error
+data: {"code": "llm_timeout", "message": "Превышено время ожидания ответа"}
 ```
 
 ---
@@ -142,33 +194,31 @@ data: {"message_id": "msg_789", "finish_reason": "stop"}
 ### TypeScript (Angular)
 
 ```typescript
-interface SSEEvent {
-  event: 'message_start' | 'content_delta' | 'tool_call' | 'tool_result' | 'message_end' | 'error' | 'ping';
-  data: unknown;
-}
+// Типы событий
+type SSEEventType = 
+  | 'message_start' 
+  | 'status' 
+  | 'content_delta' 
+  | 'message_end' 
+  | 'error' 
+  | 'ping';
 
 interface MessageStartData {
   message_id: string;
   chat_id: string;
 }
 
+interface StatusData {
+  stage: 'extracting' | 'searching' | 'formatting';
+}
+
 interface ContentDeltaData {
   delta: string;
 }
 
-interface ToolCallData {
-  id: string;
-  name: string;
-  arguments: Record<string, unknown>;
-}
-
 interface MessageEndData {
   message_id: string;
-  finish_reason: 'stop' | 'length' | 'tool_calls';
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-  };
+  finish_reason: 'stop' | 'length';
 }
 
 interface SSEErrorData {
@@ -177,12 +227,67 @@ interface SSEErrorData {
 }
 ```
 
+### Пример использования (Angular)
+
+```typescript
+@Injectable()
+export class ChatService {
+  
+  streamResponse(chatId: string, messageId: string): Observable<SSEEvent> {
+    const url = `/api/v1/chats/${chatId}/stream?message_id=${messageId}`;
+    
+    return new Observable(observer => {
+      const eventSource = new EventSource(url);
+      
+      eventSource.addEventListener('message_start', (e) => {
+        observer.next({ type: 'message_start', data: JSON.parse(e.data) });
+      });
+      
+      eventSource.addEventListener('status', (e) => {
+        observer.next({ type: 'status', data: JSON.parse(e.data) });
+      });
+      
+      eventSource.addEventListener('content_delta', (e) => {
+        observer.next({ type: 'content_delta', data: JSON.parse(e.data) });
+      });
+      
+      eventSource.addEventListener('message_end', (e) => {
+        observer.next({ type: 'message_end', data: JSON.parse(e.data) });
+        eventSource.close();
+        observer.complete();
+      });
+      
+      eventSource.addEventListener('error', (e) => {
+        if (e.data) {
+          observer.next({ type: 'error', data: JSON.parse(e.data) });
+        }
+        eventSource.close();
+        observer.complete();
+      });
+      
+      return () => eventSource.close();
+    });
+  }
+}
+```
+
 ### Рекомендации по реализации
 
 1. **Буферизация:** Накапливать `content_delta` и обновлять UI с debounce ~50ms
-2. **Reconnect:** При обрыве соединения — retry через 3 сек (max 3 попытки)
-3. **Timeout:** Если нет событий 30 сек (кроме ping) — считать ошибкой
-4. **Отмена:** При уходе со страницы — закрыть EventSource
+2. **Статусы:** Показывать индикатор текущего этапа (extracting → searching → formatting)
+3. **Reconnect:** При обрыве соединения — retry через 3 сек (max 3 попытки)
+4. **Timeout:** Если нет событий 30 сек (кроме ping) — считать ошибкой
+5. **Отмена:** При уходе со страницы — закрыть EventSource
+
+---
+
+## UI отображение статусов
+
+| Stage | Текст для пользователя |
+|-------|------------------------|
+| extracting | "Анализирую запрос..." |
+| searching | "Ищу автомобили..." |
+| formatting | "Подготавливаю ответ..." |
 
 ---
 

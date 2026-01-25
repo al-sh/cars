@@ -11,7 +11,7 @@
 - Хранение справочника автомобилей
 - Поиск и фильтрация по параметрам
 - CRUD операции (для администрирования)
-- Обработка tool calls от LLM
+- Предоставление данных для MessageService
 
 ---
 
@@ -148,10 +148,10 @@ public class CarService {
     }
     
     /**
-     * Метод для tool calling из LLM.
-     * Возвращает упрощённый результат для включения в контекст.
+     * Метод для MessageService.
+     * Возвращает упрощённый результат для форматирования LLM.
      */
-    public ToolSearchResult searchForLLM(CarSearchCriteria criteria, int limit) {
+    public SearchResult searchForChat(CarSearchCriteria criteria, int limit) {
         Specification<Car> spec = buildSpecification(criteria);
         
         List<Car> cars = carRepository.findAll(spec,
