@@ -252,6 +252,32 @@ getChatById(chatId: string) {
 
 ---
 
+## Git
+
+### Коммиты
+
+- ✅ **Сообщения коммитов на русском языке**
+- ✅ **Описание:** Краткое и понятное описание изменений
+- ✅ **Начинать с заглавной буквы**
+
+**Примеры:**
+
+```bash
+# ✅ Правильно
+git commit -m "Реализован этап 2 - роутинг и ChatLayout компонент"
+git commit -m "Исправлена ошибка отображения chatId в шаблоне"
+git commit -m "Добавлен readonly модификатор к chatId signal"
+git commit -m "Обновлена документация по использованию Signals"
+
+# ❌ Неправильно
+git commit -m "реализован этап 2 - роутинг и ChatLayout компонент"
+git commit -m "feat: implement stage 2 - routing and ChatLayout component"
+git commit -m "fix bug"
+git commit -m "update"
+```
+
+---
+
 ## Обработка ошибок
 
 ### Try-Catch

@@ -1,0 +1,14 @@
+<div class="chat-layout">
+  <aside class="sidebar">
+    <!-- ChatList будет здесь -->
+    <p>Sidebar placeholder</p>
+  </aside>
+  <main class="content">
+    <!-- ChatWindow будет здесь -->
+    @if (chatId()) {
+      <p>Выбран чат с ID: <strong>{{ chatId() }}</strong></p>
+    } @else {
+      <p>Content placeholder - выберите чат</p>
+    }
+  </main>
+</div>
