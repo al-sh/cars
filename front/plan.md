@@ -17,7 +17,8 @@ AppComponent
         ├── ChatHeader
         │   └── DropdownMenu
         ├── MessageList
-        │   └── MessageItem[]
+        │   ├── MessageItem[]
+        │   └── TypingIndicator
         └── MessageInput
 
 Shared:
@@ -46,7 +47,8 @@ front/src/app/
 │       ├── chat-header/
 │       ├── message-list/
 │       ├── message-item/
-│       └── message-input/
+│       ├── message-input/
+│       └── typing-indicator/
 ├── shared/
 │   └── components/
 │       ├── header/
@@ -85,7 +87,7 @@ front/src/app/
 3. Создать `message.model.ts`:
    ```typescript
    export type MessageRole = 'user' | 'assistant' | 'system';
-   
+
    export interface Message {
      id: string;
      chat_id: string;
@@ -216,6 +218,7 @@ front/src/app/
 - `@Input()` для передачи данных в компонент
 - `@Output()` и `EventEmitter` для событий
 - Новый control flow: `@for (chat of chats; track chat.id)`
+- **Почему `track` важен:** Angular использует track для идентификации элементов при изменении массива. Без track Angular пересоздаёт все DOM-элементы. С track — только изменённые. Аналог `key` в React, но обязательный.
 - `DatePipe` для форматирования дат
 - Event binding: `(click)="onSelect()"`
 
@@ -236,19 +239,19 @@ front/src/app/
      // Signals для состояния
      private chatsSignal = signal<Chat[]>(MOCK_CHATS);
      private messagesSignal = signal<Map<string, Message[]>>(new Map());
-     
+
      // Публичные readonly signals
      readonly chats = this.chatsSignal.asReadonly();
-     
+
      // Computed signal для текущего чата
      readonly currentChatId = signal<string | null>(null);
-     readonly currentChat = computed(() => 
+     readonly currentChat = computed(() =>
        this.chats().find(c => c.id === this.currentChatId())
      );
-     readonly currentMessages = computed(() => 
+     readonly currentMessages = computed(() =>
        this.messagesSignal().get(this.currentChatId() ?? '') ?? []
      );
-     
+
      // Методы
      selectChat(id: string): void { ... }
      getMessages(chatId: string): Message[] { ... }
@@ -292,7 +295,39 @@ front/src/app/
 
 ---
 
-### Этап 7: ChatWindow и роутинг
+### Этап 7: OnPush Change Detection
+
+**Время:** ~30 мин
+
+**Цель:** Оптимизировать производительность с OnPush стратегией.
+
+**Задачи:**
+
+1. Добавить `ChangeDetectionStrategy.OnPush` во все созданные компоненты:
+   ```typescript
+   @Component({
+     selector: 'app-chat-item',
+     changeDetection: ChangeDetectionStrategy.OnPush,
+     // ...
+   })
+   ```
+
+2. Убедиться, что всё работает корректно с Signals
+
+3. Понять разницу между Default и OnPush:
+   - **Default:** Angular проверяет компонент при каждом событии (клик, HTTP, таймер)
+   - **OnPush:** Angular проверяет только при изменении `@Input()` или вызове Signals
+
+**Изучаемые концепции:**
+
+- `ChangeDetectionStrategy.OnPush`
+- Как Signals автоматически триггерят change detection
+- Почему OnPush + Signals — рекомендуемый подход в Angular 17+
+- Разница с React: в React ре-рендер по умолчанию "умный", в Angular нужно явно указать OnPush
+
+---
+
+### Этап 8: ChatWindow и роутинг
 
 **Время:** ~45 мин
 
@@ -313,7 +348,7 @@ front/src/app/
 4. Добавить навигацию при выборе чата:
    ```typescript
    private router = inject(Router);
-   
+
    onChatSelect(chatId: string) {
      this.router.navigate(['/chat', chatId]);
    }
@@ -328,7 +363,7 @@ front/src/app/
 
 ---
 
-### Этап 8: MessageList
+### Этап 9: MessageList
 
 **Время:** ~45 мин
 
@@ -343,7 +378,7 @@ front/src/app/
    - Автоскролл вниз при новых сообщениях
    ```typescript
    @ViewChild('scrollContainer') scrollContainer!: ElementRef;
-   
+
    ngAfterViewChecked() {
      this.scrollToBottom();
    }
@@ -362,7 +397,7 @@ front/src/app/
 
 ---
 
-### Этап 9: MessageInput (базовый)
+### Этап 10: MessageInput (базовый)
 
 **Время:** ~45 мин
 
@@ -374,7 +409,7 @@ front/src/app/
 2. Использовать Reactive Forms:
    ```typescript
    private fb = inject(FormBuilder);
-   
+
    messageForm = this.fb.group({
      content: ['', [Validators.required, Validators.maxLength(4000)]]
    });
@@ -383,7 +418,7 @@ front/src/app/
 3. Шаблон:
    ```html
    <form [formGroup]="messageForm" (ngSubmit)="onSubmit()">
-     <textarea formControlName="content" 
+     <textarea formControlName="content"
                placeholder="Введите сообщение...">
      </textarea>
      <button type="submit" [disabled]="messageForm.invalid">
@@ -403,7 +438,7 @@ front/src/app/
 
 ---
 
-### Этап 10: MessageInput (улучшения)
+### Этап 11: MessageInput (улучшения)
 
 **Время:** ~45 мин
 
@@ -428,12 +463,22 @@ front/src/app/
    }
    ```
 
-3. Авто-resize textarea (CSS):
+3. Авто-resize textarea (с fallback):
    ```css
    textarea {
-     field-sizing: content; /* современный способ */
+     /* Современный способ (Chrome 123+, не везде поддерживается) */
+     field-sizing: content;
      min-height: 40px;
      max-height: 120px;
+   }
+   ```
+
+   ```typescript
+   // Fallback для браузеров без field-sizing
+   onInput(event: Event) {
+     const textarea = event.target as HTMLTextAreaElement;
+     textarea.style.height = 'auto';
+     textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
    }
    ```
 
@@ -444,49 +489,70 @@ front/src/app/
 - Обработка событий клавиатуры
 - Доступ к FormControl: `this.messageForm.get('content')`
 - Динамические стили и классы
+- Progressive enhancement (CSS + JS fallback)
 
 ---
 
-### Этап 11: Поиск чатов
+### Этап 12: Поиск чатов
 
-**Время:** ~30 мин
+**Время:** ~45 мин
 
-**Цель:** Реализовать фильтрацию списка чатов.
+**Цель:** Реализовать фильтрацию списка чатов с debounce.
 
 **Задачи:**
 
 1. Добавить `FormControl` для поиска в `ChatListComponent`
-2. Создать computed signal для фильтрации:
+
+2. Использовать RxJS + Signals интеграцию:
    ```typescript
-   searchQuery = signal('');
-   
+   import { toSignal } from '@angular/core/rxjs-interop';
+   import { debounceTime, distinctUntilChanged, map } from 'rxjs';
+
+   searchControl = new FormControl('');
+
+   // Конвертируем Observable в Signal с debounce
+   searchQuery = toSignal(
+     this.searchControl.valueChanges.pipe(
+       debounceTime(300),
+       distinctUntilChanged(),
+       map(value => value?.trim().toLowerCase() ?? '')
+     ),
+     { initialValue: '' }
+   );
+
+   // Computed signal для фильтрации
    filteredChats = computed(() => {
-     const query = this.searchQuery().toLowerCase();
+     const query = this.searchQuery();
      if (!query) return this.chatService.chats();
-     return this.chatService.chats().filter(chat => 
+     return this.chatService.chats().filter(chat =>
        chat.title?.toLowerCase().includes(query)
      );
    });
    ```
 
-3. Связать input с signal:
+3. Шаблон:
    ```html
-   <input type="text" 
-          placeholder="Поиск..."
-          (input)="searchQuery.set($event.target.value)">
+   <input type="text"
+          [formControl]="searchControl"
+          placeholder="Поиск...">
+
+   @for (chat of filteredChats(); track chat.id) {
+     <app-chat-item [chat]="chat" />
+   }
    ```
 
 4. Пустое состояние при отсутствии результатов
 
 **Изучаемые концепции:**
 
+- `toSignal()` — конвертация Observable в Signal
+- RxJS операторы: `debounceTime`, `distinctUntilChanged`
+- Интеграция RxJS и Signals (Angular 16+ rxjs-interop)
 - `computed()` для производных данных
-- Связывание input с Signals
-- Фильтрация массивов
 
 ---
 
-### Этап 12: Создание чата
+### Этап 13: Создание чата
 
 **Время:** ~30 мин
 
@@ -517,13 +583,13 @@ front/src/app/
 3. Приветственное сообщение для нового чата (из требований):
    ```
    Здравствуйте! Я ИИ-помощник по подбору автомобилей.
-   
-   Расскажите, какой автомобиль вы ищете, и я помогу выбрать 
+
+   Расскажите, какой автомобиль вы ищете, и я помогу выбрать
    оптимальный вариант. Можете указать:
    • Бюджет
    • Тип кузова (седан, кроссовер, хэтчбек...)
    • Для каких целей нужен автомобиль
-   
+
    Или просто опишите свои пожелания своими словами!
    ```
 
@@ -535,7 +601,7 @@ front/src/app/
 
 ---
 
-### Этап 13: Inline-редактирование названия
+### Этап 14: Inline-редактирование названия
 
 **Время:** ~45 мин
 
@@ -561,7 +627,7 @@ front/src/app/
 2. Автофокус на input при редактировании:
    ```typescript
    @ViewChild('editInput') editInput?: ElementRef<HTMLInputElement>;
-   
+
    startEdit() {
      this.isEditing.set(true);
      setTimeout(() => this.editInput?.nativeElement.focus());
@@ -578,7 +644,7 @@ front/src/app/
 
 ---
 
-### Этап 14: Удаление чата с модалкой
+### Этап 15: Удаление чата с модалкой
 
 **Время:** ~45 мин
 
@@ -590,6 +656,7 @@ front/src/app/
    ```typescript
    @Component({
      selector: 'app-confirm-modal',
+     changeDetection: ChangeDetectionStrategy.OnPush,
      template: `
        <div class="modal-backdrop" (click)="onCancel()">
          <div class="modal" (click)="$event.stopPropagation()">
@@ -607,9 +674,23 @@ front/src/app/
      title = input('Подтверждение');
      message = input('Вы уверены?');
      confirmText = input('Удалить');
-     
+
      confirmed = output<void>();
      cancelled = output<void>();
+
+     // Закрытие по Escape
+     @HostListener('document:keydown.escape')
+     onEscapePress() {
+       this.onCancel();
+     }
+
+     onConfirm() {
+       this.confirmed.emit();
+     }
+
+     onCancel() {
+       this.cancelled.emit();
+     }
    }
    ```
 
@@ -623,12 +704,13 @@ front/src/app/
 **Изучаемые концепции:**
 
 - Новый синтаксис: `input()`, `output()`
+- `@HostListener` для глобальных событий (Escape)
 - Модальные окна и overlay
 - Остановка всплытия событий: `$event.stopPropagation()`
 
 ---
 
-### Этап 15: Состояния загрузки
+### Этап 16: Состояния загрузки
 
 **Время:** ~30 мин
 
@@ -639,7 +721,7 @@ front/src/app/
 1. В `ChatService` добавить signal `isLoading`:
    ```typescript
    isLoading = signal(false);
-   
+
    async loadChats() {
      this.isLoading.set(true);
      await delay(500); // имитация загрузки
@@ -666,7 +748,94 @@ front/src/app/
 
 ---
 
-### Этап 16: Стилизация (desktop)
+### Этап 17: Typing Indicator
+
+**Время:** ~30 мин
+
+**Цель:** Создать анимированный индикатор "печатает...".
+
+**Задачи:**
+
+1. Создать `TypingIndicatorComponent` в `features/chat/typing-indicator/`:
+   ```typescript
+   @Component({
+     selector: 'app-typing-indicator',
+     changeDetection: ChangeDetectionStrategy.OnPush,
+     template: `
+       <div class="typing-indicator">
+         <span class="dot"></span>
+         <span class="dot"></span>
+         <span class="dot"></span>
+       </div>
+     `,
+     styles: [`
+       .typing-indicator {
+         display: flex;
+         gap: 4px;
+         padding: 12px 16px;
+         background: var(--color-assistant-msg);
+         border-radius: 16px;
+         width: fit-content;
+       }
+
+       .dot {
+         width: 8px;
+         height: 8px;
+         background: var(--color-text-secondary);
+         border-radius: 50%;
+         animation: bounce 1.4s infinite ease-in-out;
+       }
+
+       .dot:nth-child(1) { animation-delay: 0s; }
+       .dot:nth-child(2) { animation-delay: 0.2s; }
+       .dot:nth-child(3) { animation-delay: 0.4s; }
+
+       @keyframes bounce {
+         0%, 80%, 100% { transform: translateY(0); }
+         40% { transform: translateY(-6px); }
+       }
+     `]
+   })
+   export class TypingIndicatorComponent {}
+   ```
+
+2. В `ChatService` добавить состояние:
+   ```typescript
+   isAssistantTyping = signal(false);
+
+   async sendMessage(chatId: string, content: string) {
+     // Добавить сообщение пользователя
+     this.addMessage(chatId, content, 'user');
+
+     // Имитация ответа ассистента
+     this.isAssistantTyping.set(true);
+     await delay(1500); // имитация "думает"
+     this.isAssistantTyping.set(false);
+
+     this.addMessage(chatId, 'Мок-ответ ассистента...', 'assistant');
+   }
+   ```
+
+3. В `MessageListComponent`:
+   ```html
+   @for (message of messages(); track message.id) {
+     <app-message-item [message]="message" />
+   }
+
+   @if (chatService.isAssistantTyping()) {
+     <app-typing-indicator />
+   }
+   ```
+
+**Изучаемые концепции:**
+
+- CSS анимации (`@keyframes`, `animation-delay`)
+- Inline styles в компонентах
+- Асинхронные операции с Signals
+
+---
+
+### Этап 18: Стилизация (desktop)
 
 **Время:** ~60 мин
 
@@ -703,7 +872,7 @@ front/src/app/
 
 ---
 
-### Этап 17: Адаптивность (mobile/tablet)
+### Этап 19: Адаптивность (mobile/tablet)
 
 **Время:** ~60 мин
 
@@ -725,16 +894,26 @@ front/src/app/
    - Sidebar collapsible (overlay)
    - Toggle кнопка
 
-4. В `ChatLayoutComponent`:
+4. В `ChatLayoutComponent` (с debounce для resize):
    ```typescript
+   import { fromEvent } from 'rxjs';
+   import { debounceTime, map, startWith } from 'rxjs/operators';
+   import { toSignal } from '@angular/core/rxjs-interop';
+
    isSidebarOpen = signal(false);
-   isMobile = signal(window.innerWidth < 768);
-   
-   @HostListener('window:resize')
-   onResize() {
-     this.isMobile.set(window.innerWidth < 768);
-   }
-   
+
+   // Реактивное определение mobile с debounce
+   private resize$ = fromEvent(window, 'resize').pipe(
+     debounceTime(150),
+     map(() => window.innerWidth),
+     startWith(window.innerWidth)
+   );
+
+   isMobile = toSignal(
+     this.resize$.pipe(map(width => width < 768)),
+     { initialValue: window.innerWidth < 768 }
+   );
+
    toggleSidebar() {
      this.isSidebarOpen.update(v => !v);
    }
@@ -743,7 +922,7 @@ front/src/app/
 **Изучаемые концепции:**
 
 - CSS Media queries
-- `@HostListener` для window events
+- `fromEvent` + `debounceTime` для window events (вместо `@HostListener`)
 - Условные классы для layout
 - Mobile-first подход
 
@@ -751,27 +930,30 @@ front/src/app/
 
 ## Дополнительные этапы (опционально)
 
-### Этап 18: Dropdown меню в ChatHeader
+### Этап 20: Dropdown меню в ChatHeader
+
+**Время:** ~45 мин
 
 - Компонент `DropdownMenuComponent`
 - Меню с пунктами: "Переименовать", "Удалить"
-- Закрытие по клику вне меню
+- Закрытие по клику вне меню (`document:click`)
 
-### Этап 19: Typing indicator
+### Этап 21: Markdown в сообщениях
 
-- Анимация "●●●" при ожидании ответа
-- Имитация streaming ответа (посимвольный вывод)
-
-### Этап 20: Markdown в сообщениях
+**Время:** ~45 мин
 
 - Установка библиотеки `ngx-markdown` или `marked`
 - Базовое форматирование: **bold**, *italic*, списки, код
+- Sanitization для безопасности
 
-### Этап 21: Toast уведомления
+### Этап 22: Toast уведомления
+
+**Время:** ~45 мин
 
 - Сервис `ToastService` с Signals
 - Компонент `ToastContainer`
 - Уведомления при ошибках и успешных действиях
+- Автоматическое скрытие через `setTimeout`
 
 ---
 
@@ -786,6 +968,8 @@ front/src/app/
 | Формы | Reactive Forms | Controlled components |
 | Стили | Scoped CSS по умолчанию | CSS Modules / styled |
 | Роутинг | Декларативный Router | React Router |
+| Change Detection | OnPush + Signals (явный) | Virtual DOM (автоматический) |
+| RxJS интеграция | Встроенная (`toSignal`, `toObservable`) | Нет (нужны библиотеки) |
 
 ## Полезные команды Angular CLI
 
@@ -809,3 +993,4 @@ ng build
 - При перезагрузке страницы данные сбросятся к начальным
 - Фокус на изучении Angular, не на интеграциях
 - Каждый этап можно тестировать независимо
+- OnPush + Signals — рекомендуемый подход для новых Angular проектов
