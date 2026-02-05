@@ -293,12 +293,14 @@ public class MessageService {
         // Emit start event
         sink.next(sseEvent("message_start", Map.of("message_id", UUID.randomUUID())));
         
-        // Step 1: Guard check (опционально, можно пропустить для простоты)
-        // GuardResult guardResult = llmService.checkRelevance(userMessage.getContent());
-        // if (!guardResult.isRelevant()) {
-        //     streamText(sink, guardResult.getRejectionResponse());
-        //     return;
-        // }
+        // Step 1: Guard check — проверка релевантности запроса
+        GuardResult guardResult = llmService.checkRelevance(userMessage.getContent());
+        if (!guardResult.isRelevant()) {
+            streamText(sink, guardResult.getRejectionResponse());
+            sink.next(sseEvent("message_end", Map.of("finish_reason", "guard")));
+            sink.complete();
+            return;
+        }
         
         // Step 2: Extract criteria
         sink.next(sseEvent("status", Map.of("stage", "extracting")));
@@ -476,9 +478,6 @@ public class DeepSeekLLMProvider implements LLMProvider {
                     lastTokenUsage.getPromptTokens(),
                     lastTokenUsage.getCompletionTokens(),
                     lastTokenUsage.getTotalTokens());
-                
-                // Записываем метрики (если ChatMetrics доступен через DI)
-                // chatMetrics.recordTokenUsage(lastTokenUsage);
             }
             
             String content = response.getChoices().get(0).getMessage().getContent();
@@ -640,7 +639,7 @@ public class LLMService {
             log.warn("Failed to parse LLM response as JSON: {}", json);
             // Fallback: считаем что нужно уточнение
             return ExtractResult.needsClarification(
-                "Не удалось понять запрос. Пожалуйста, уточните, какой автомобиль вы ищете и какой у вас бюджет?"
+                "Не удалось понять запрос. Пожалуйста, уточните, какой автомобиль вы ищете и на какую сумму рассчитываете?"
             );
         }
     }
@@ -761,7 +760,7 @@ public class LLMConfig {
 @Builder
 public class ExtractResult {
     private boolean readyToSearch;
-    private CarSearchCriteria criteria;
+    private CarSearchCriteria criteria;  // См. contracts/types.md
     private String clarificationQuestion;
     private String extractedInfo;
     
@@ -771,10 +770,6 @@ public class ExtractResult {
             .clarificationQuestion(question)
             .build();
     }
-    
-    public CarSearchCriteria toCriteria() {
-        return criteria;
-    }
 }
 
 @Data
@@ -783,22 +778,9 @@ public class GuardResult {
     private boolean relevant;
     private String rejectionResponse;
 }
-
-@Data
-@Builder
-public class CarSearchCriteria {
-    private Integer budgetMin;
-    private Integer budgetMax;
-    private String bodyType;
-    private String engineType;
-    private String brand;
-    private Integer seats;
-    private String transmission;
-    private String drive;
-    private Integer yearMin;
-    private Integer yearMax;
-}
 ```
+
+**CarSearchCriteria** определён в `contracts/types.md` — единый источник истины для критериев поиска.
 
 ---
 
@@ -820,23 +802,15 @@ public record SendMessageRequest(
 @Component
 public class CriteriaValidator {
     
-    private static final Set<String> ALLOWED_BODY_TYPES = 
-        Set.of("sedan", "suv", "hatchback", "wagon", "minivan", "coupe", "pickup");
-    
-    private static final Set<String> ALLOWED_ENGINE_TYPES = 
-        Set.of("petrol", "diesel", "hybrid", "electric");
+    // Допустимые значения — см. contracts/types.md
     
     public void validate(CarSearchCriteria criteria) {
-        if (criteria.getBudgetMax() != null && criteria.getBudgetMax() < 100000) {
-            throw new InvalidCriteriaException("Минимальный бюджет: 100 000 ₽");
+        if (criteria.getMaxPrice() != null && criteria.getMaxPrice() < 100000) {
+            throw new InvalidCriteriaException("Минимальная цена: 100 000 ₽");
         }
         
-        if (criteria.getBodyType() != null && 
-            !ALLOWED_BODY_TYPES.contains(criteria.getBodyType())) {
-            throw new InvalidCriteriaException("Неизвестный тип кузова");
-        }
-        
-        // ... другие проверки
+        // Валидация enum-значений делегируется на уровень БД (CHECK constraints)
+        // или через enum-типы Java
     }
 }
 ```
@@ -955,30 +929,6 @@ public class ChatExceptionHandler {
 
 ---
 
-## Конфигурация WebClient для DeepSeek
-
-```java
-@Configuration
-public class DeepSeekConfig {
-    
-    @Value("${llm.base-url}")
-    private String baseUrl;
-    
-    @Bean
-    public WebClient deepseekClient() {
-        return WebClient.builder()
-            .baseUrl(baseUrl)
-            .defaultHeader("Content-Type", "application/json")
-            .codecs(configurer -> configurer
-                .defaultCodecs()
-                .maxInMemorySize(10 * 1024 * 1024)) // 10MB для больших ответов
-            .build();
-    }
-}
-```
-
----
-
 ## Конфигурация
 
 ```yaml
@@ -1012,47 +962,14 @@ chat:
 
 ---
 
-## Метрики (Micrometer)
-
-```java
-@Component
-@RequiredArgsConstructor
-public class ChatMetrics {
-    
-    private final MeterRegistry registry;
-    
-    public void recordMessageSent() {
-        registry.counter("chat.messages.sent").increment();
-    }
-    
-    public void recordLLMCall(String mode, Duration duration) {
-        registry.timer("chat.llm.latency", "mode", mode).record(duration);
-    }
-    
-    public void recordLLMError(String errorType) {
-        registry.counter("chat.llm.errors", "type", errorType).increment();
-    }
-    
-    public void recordSearchResults(int count) {
-        registry.summary("chat.search.results").record(count);
-    }
-    
-    public void recordClarificationNeeded() {
-        registry.counter("chat.clarification.needed").increment();
-    }
-}
-```
-
----
-
 ## Тестирование
 
 ### Unit tests
 - ChatService: CRUD операции, проверка владельца
 - MessageService: валидация, rate limiting, flow обработки
-- LLMService: парсинг JSON ответов, обработка ошибок
-- DeepSeekLLMProvider: retry логика, обработка ошибок, мониторинг токенов
-- CriteriaValidator: валидация критериев
+- LLMService: парсинг JSON ответов, обработка ошибок, Guard mode
+- DeepSeekLLMProvider: retry логика, обработка ошибок
+- CriteriaValidator: валидация критериев, проверка минимум 2 дополнительных параметров
 
 ### Integration tests
 - ChatController: HTTP статусы, валидация, авторизация
@@ -1070,14 +987,23 @@ public class LLMTestConfig {
     public LLMService mockLLMService() {
         LLMService mock = Mockito.mock(LLMService.class);
         
-        // Mock extract
-        when(mock.extractCriteria(contains("кроссовер")))
+        // Mock extract — нужно минимум 2 дополнительных критерия
+        when(mock.extractCriteria(contains("кроссовер бензин автомат")))
             .thenReturn(ExtractResult.builder()
                 .readyToSearch(true)
                 .criteria(CarSearchCriteria.builder()
-                    .bodyType("suv")
-                    .budgetMax(3000000)
+                    .bodyType(BodyType.SUV)
+                    .engineType(EngineType.PETROL)
+                    .transmission(Transmission.AUTOMATIC)
+                    .maxPrice(3000000)
                     .build())
+                .build());
+        
+        // Mock extract — недостаточно критериев
+        when(mock.extractCriteria(contains("кроссовер до 3 млн")))
+            .thenReturn(ExtractResult.builder()
+                .readyToSearch(false)
+                .clarificationQuestion("Уточните тип двигателя и КПП")
                 .build());
         
         // Mock format

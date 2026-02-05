@@ -167,6 +167,54 @@ public enum DriveType {
 
 ---
 
+## CarSearchCriteria
+
+Критерии поиска автомобилей. Единый источник истины для LLM Extract и GET /cars API.
+
+**TypeScript:**
+```typescript
+interface CarSearchCriteria {
+  min_price?: number;
+  max_price: number;          // Обязательный
+  body_type?: BodyType;
+  engine_type?: EngineType;
+  brand?: string;
+  seats?: number;
+  transmission?: Transmission;
+  drive?: DriveType;
+  year_min?: number;
+  year_max?: number;
+}
+```
+
+**Java:**
+```java
+@Data
+@Builder
+public class CarSearchCriteria {
+    private Integer minPrice;
+    private Integer maxPrice;      // Обязательный
+    private BodyType bodyType;
+    private EngineType engineType;
+    private String brand;
+    private Integer seats;
+    private Transmission transmission;
+    private DriveType drive;
+    private Integer yearMin;
+    private Integer yearMax;
+}
+```
+
+### Правила готовности к поиску
+
+Поиск выполняется когда:
+1. Указан `max_price` (обязательный)
+2. Указано **минимум 2 дополнительных параметра** из списка выше
+
+Если условия не выполнены — LLM задаёт уточняющие вопросы.
+
+---
+
 ## Пагинация
 
 Общий формат ответа со списком.

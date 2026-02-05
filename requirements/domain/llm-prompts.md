@@ -23,31 +23,34 @@
 
 ## Правила
 
-### Обязательные критерии (без них поиск невозможен):
-- budget_max — максимальный бюджет
+### Обязательный критерий:
+- max_price — максимальная цена
 
-### Желательные критерии (улучшают поиск):
-- budget_min — минимальный бюджет
+### Дополнительные критерии (нужно минимум 2 для поиска):
+- min_price — минимальная цена
 - body_type — тип кузова (sedan, suv, hatchback, wagon, minivan, coupe, pickup)
 - engine_type — тип двигателя (petrol, diesel, hybrid, electric)
 - brand — марка автомобиля
 - seats — количество мест
-- transmission — тип КПП (manual, automatic)
+- transmission — тип КПП (manual, automatic, robot, cvt)
 - drive — тип привода (fwd, rwd, awd)
 - year_min — год выпуска от
 - year_max — год выпуска до
 
 ### Логика работы:
-1. Если указан бюджет — установи ready_to_search: true
-2. Если бюджет НЕ указан — установи ready_to_search: false и сформулируй уточняющий вопрос
+1. Если указана цена И минимум 2 дополнительных критерия — установи ready_to_search: true
+2. Если цена НЕ указана ИЛИ меньше 2 дополнительных критериев — установи ready_to_search: false и задай уточняющий вопрос
 3. Извлекай только явно указанные критерии
 4. НЕ додумывай критерии, которые пользователь не указал
+5. Задавай не более 2 вопросов за раз
 
 ### Нормализация значений:
 - "3 млн", "3 миллиона", "3000000" → 3000000
 - "кроссовер", "паркетник", "SUV" → "suv"
 - "автомат", "АКПП" → "automatic"
 - "механика", "МКПП" → "manual"
+- "робот", "роботизированная" → "robot"
+- "вариатор", "CVT" → "cvt"
 - "полный привод", "4WD", "AWD" → "awd"
 
 ## Формат ответа (строго JSON)
@@ -56,8 +59,8 @@
 {
   "ready_to_search": true|false,
   "criteria": {
-    "budget_min": number|null,
-    "budget_max": number|null,
+    "min_price": number|null,
+    "max_price": number|null,
     "body_type": string|null,
     "engine_type": string|null,
     "brand": string|null,
@@ -78,13 +81,13 @@
 Ответ:
 ```json
 {
-  "ready_to_search": true,
+  "ready_to_search": false,
   "criteria": {
-    "budget_max": 3000000,
+    "max_price": 3000000,
     "body_type": "suv"
   },
-  "clarification_question": null,
-  "extracted_info": "Кроссовер с бюджетом до 3 000 000 ₽"
+  "clarification_question": "Отлично, кроссовер до 3 млн! Уточните, пожалуйста:\n1. Какой тип двигателя предпочитаете: бензин, дизель, гибрид?\n2. Автомат или механика?",
+  "extracted_info": "Кроссовер до 3 000 000 ₽ (нужно ещё 1 критерий)"
 }
 ```
 
@@ -94,8 +97,24 @@
 {
   "ready_to_search": false,
   "criteria": {},
-  "clarification_question": "Подскажите, пожалуйста, какой бюджет вы рассматриваете? Также уточните, сколько мест вам нужно — 5 или 7?",
-  "extracted_info": "Семейный автомобиль, бюджет не указан"
+  "clarification_question": "Помогу подобрать семейный автомобиль! Подскажите:\n1. На какую сумму рассчитываете?\n2. Сколько мест нужно — 5 или 7?",
+  "extracted_info": "Семейный автомобиль, критерии не указаны"
+}
+```
+
+Запрос: "Кроссовер до 3 млн, бензин, автомат"
+Ответ:
+```json
+{
+  "ready_to_search": true,
+  "criteria": {
+    "max_price": 3000000,
+    "body_type": "suv",
+    "engine_type": "petrol",
+    "transmission": "automatic"
+  },
+  "clarification_question": null,
+  "extracted_info": "Кроссовер, бензин, автомат, до 3 000 000 ₽"
 }
 ```
 
@@ -105,7 +124,7 @@
 {
   "ready_to_search": true,
   "criteria": {
-    "budget_max": 3500000,
+    "max_price": 3500000,
     "body_type": "suv",
     "transmission": "automatic",
     "year_min": 2020
@@ -247,30 +266,32 @@
 
 ### Пример 1: Полный запрос (без уточнений)
 
-**User:** Ищу семейный 7-местный кроссовер, бензин, до 7 млн, автомат, полный привод
+**User:** Ищу семейный 7-местный кроссовер, бензин, до 7 млн, автомат
+
+**Backend → LLM (Guard):** → is_relevant: true
 
 **Backend → LLM (Extract):**
 ```json
 {
   "ready_to_search": true,
   "criteria": {
-    "budget_max": 7000000,
+    "max_price": 7000000,
     "body_type": "suv",
     "engine_type": "petrol",
     "seats": 7,
-    "transmission": "automatic",
-    "drive": "awd"
+    "transmission": "automatic"
   },
   "clarification_question": null,
-  "extracted_info": "7-местный кроссовер, бензин, автомат, полный привод, до 7 000 000 ₽"
+  "extracted_info": "7-местный кроссовер, бензин, автомат, до 7 000 000 ₽"
 }
 ```
+*5 дополнительных критериев → ready_to_search: true*
 
 **Backend → PostgreSQL:** SELECT * FROM cars WHERE ...
 
 **Backend → LLM (Format):** { results: [...] }
 
-**LLM → Backend → User:**
+**Backend → User (SSE stream):**
 ```
 Нашёл 3 семейных кроссовера под ваши требования:
 
@@ -285,21 +306,47 @@
 
 ---
 
-### Пример 2: Требуется уточнение
+### Пример 2: Требуется уточнение (мало критериев)
+
+**User:** Кроссовер до 3 млн
+
+**Backend → LLM (Guard):** → is_relevant: true
+
+**Backend → LLM (Extract):**
+```json
+{
+  "ready_to_search": false,
+  "criteria": {
+    "max_price": 3000000,
+    "body_type": "suv"
+  },
+  "clarification_question": "Кроссовер до 3 млн — хороший выбор! Уточните:\n1. Бензин, дизель или гибрид?\n2. Автомат или механика?",
+  "extracted_info": "Кроссовер до 3 000 000 ₽ (1 доп. критерий, нужно минимум 2)"
+}
+```
+*Только 1 дополнительный критерий → ready_to_search: false*
+
+**Backend → User:** (возвращает clarification_question)
+
+---
+
+### Пример 3: Требуется уточнение (нет цены)
 
 **User:** Хочу машину для семьи
+
+**Backend → LLM (Guard):** → is_relevant: true
 
 **Backend → LLM (Extract):**
 ```json
 {
   "ready_to_search": false,
   "criteria": {},
-  "clarification_question": "Помогу подобрать семейный автомобиль! Подскажите:\n1. Какой бюджет вы рассматриваете?\n2. Сколько мест нужно — 5 или 7?",
+  "clarification_question": "Помогу подобрать семейный автомобиль! Подскажите:\n1. На какую сумму рассчитываете?\n2. Сколько мест нужно — 5 или 7?",
   "extracted_info": "Семейный автомобиль, критерии не указаны"
 }
 ```
 
-**Backend → User:** (возвращает clarification_question напрямую)
+**Backend → User:** (возвращает clarification_question)
 
 ---
 
@@ -313,7 +360,7 @@
 
 **Backend → LLM (Format):** { results: [], user_criteria: "..." }
 
-**LLM → Backend → User:**
+**Backend → User (SSE stream):**
 ```
 К сожалению, в нашей базе нет электромобилей в бюджете до 1 000 000 ₽. 
 

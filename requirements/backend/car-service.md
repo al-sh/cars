@@ -10,7 +10,6 @@
 
 - Хранение справочника автомобилей
 - Поиск и фильтрация по параметрам
-- CRUD операции (для администрирования)
 - Предоставление данных для MessageService
 
 ---
@@ -97,11 +96,6 @@ public class CarController {
     public List<String> getBrands() {
         return carService.getAllBrands();
     }
-    
-    @GetMapping("/stats")
-    public CarStats getStats() {
-        return carService.getStats();
-    }
 }
 ```
 
@@ -136,15 +130,6 @@ public class CarService {
     
     public List<String> getAllBrands() {
         return carRepository.findDistinctBrands();
-    }
-    
-    public CarStats getStats() {
-        return CarStats.builder()
-            .totalCount(carRepository.count())
-            .minPrice(carRepository.findMinPrice())
-            .maxPrice(carRepository.findMaxPrice())
-            .brandCount(carRepository.countDistinctBrands())
-            .build();
     }
     
     /**
@@ -259,30 +244,13 @@ public class CarService {
 
 ---
 
-## DTO и Criteria
+## DTO
 
 ### CarSearchCriteria
 
-```java
-@Builder
-public record CarSearchCriteria(
-    Integer minPrice,
-    Integer maxPrice,
-    BodyType bodyType,
-    EngineType engineType,
-    String brand,
-    Integer minYear,
-    Integer maxYear,
-    Integer seats,
-    Transmission transmission,
-    DriveType drive,
-    Integer minPower,
-    Integer maxPower,
-    BigDecimal maxFuelConsumption
-) {}
-```
+См. `contracts/types.md` — единый источник истины.
 
-### ToolSearchResult
+### SearchResult
 
 Для возврата в LLM:
 
@@ -307,18 +275,6 @@ public record CarShortDto(
 ) {}
 ```
 
-### CarStats
-
-```java
-@Builder
-public record CarStats(
-    long totalCount,
-    int minPrice,
-    int maxPrice,
-    long brandCount
-) {}
-```
-
 ---
 
 ## Repository
@@ -330,15 +286,6 @@ public interface CarRepository extends JpaRepository<Car, UUID>,
     
     @Query("SELECT DISTINCT c.brand FROM Car c ORDER BY c.brand")
     List<String> findDistinctBrands();
-    
-    @Query("SELECT COUNT(DISTINCT c.brand) FROM Car c")
-    long countDistinctBrands();
-    
-    @Query("SELECT MIN(c.price) FROM Car c")
-    Integer findMinPrice();
-    
-    @Query("SELECT MAX(c.price) FROM Car c")
-    Integer findMaxPrice();
 }
 ```
 
@@ -451,26 +398,6 @@ INSERT INTO cars (id, brand, model, year, price, body_type, engine_type,
  NULL, 283, 'AUTOMATIC', 'AWD', 5, NULL, 'Запас хода 500 км');
 ```
 
-### Import Service (опционально)
-
-```java
-@Service
-public class CarImportService {
-    
-    public int importFromCsv(InputStream csv) {
-        // Парсинг CSV
-        // Валидация
-        // Batch insert
-    }
-    
-    public int importFromJson(InputStream json) {
-        // Парсинг JSON
-        // Маппинг на Car entity
-        // Сохранение
-    }
-}
-```
-
 ---
 
 ## Индексы
@@ -489,42 +416,10 @@ CREATE INDEX idx_cars_search ON cars(body_type, engine_type, price);
 
 ---
 
-## Кэширование
-
-```java
-@Service
-@RequiredArgsConstructor
-public class CarService {
-    
-    @Cacheable(value = "brands", unless = "#result.isEmpty()")
-    public List<String> getAllBrands() {
-        return carRepository.findDistinctBrands();
-    }
-    
-    @Cacheable(value = "carStats")
-    public CarStats getStats() {
-        // ...
-    }
-    
-    @CacheEvict(value = {"brands", "carStats"}, allEntries = true)
-    public void evictCaches() {
-        // Вызывается при изменении справочника
-    }
-}
-```
-
----
-
 ## Конфигурация
 
 ```yaml
 # application.yml
-
-spring:
-  cache:
-    type: caffeine
-    caffeine:
-      spec: maximumSize=100,expireAfterWrite=1h
 
 car-catalog:
   default-page-size: 20

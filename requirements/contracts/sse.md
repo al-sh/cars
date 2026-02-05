@@ -165,7 +165,7 @@ event: content_delta
 data: {"delta": "Подскажите, пожалуйста:\n"}
 
 event: content_delta
-data: {"delta": "1. Какой бюджет вы рассматриваете?\n"}
+data: {"delta": "1. На какую сумму рассчитываете?\n"}
 
 event: content_delta
 data: {"delta": "2. Какой тип кузова предпочитаете?"}

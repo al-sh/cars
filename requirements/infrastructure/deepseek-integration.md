@@ -148,26 +148,6 @@ Content-Type: application/json
 [LLM] chat_id={} mode={} prompt_tokens={} completion_tokens={} total_tokens={}
 ```
 
-### Метрики (Micrometer)
-
-```java
-// Счётчик токенов
-llm.tokens.prompt (counter)
-llm.tokens.completion (counter)
-
-// Время ответа
-llm.latency (timer, tags: mode=[extract|format|title])
-
-// Ошибки
-llm.errors (counter, tags: type=[timeout|rate_limit|unavailable])
-```
-
-### Алерты (опционально)
-
-- Превышение дневного лимита токенов
-- Частые ошибки rate limiting
-- Высокая латентность (>30 сек)
-
 ---
 
 ## Безопасность
@@ -267,6 +247,5 @@ curl -X POST https://api.deepseek.com/v1/chat/completions \
 - [ ] Добавить переменные окружения
 - [ ] Проверить подключение (curl)
 - [ ] Настроить логирование токенов
-- [ ] Настроить метрики (опционально)
 - [ ] Проверить retry логику
 - [ ] Добавить .env.example в репозиторий
