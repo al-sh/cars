@@ -1,13 +1,16 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
+import { HeaderComponent } from '../../../shared/components/header/header.component';
 
 @Component({
   selector: 'app-chat-layout',
-  imports: [],
+  standalone: true,
+  imports: [HeaderComponent],
   templateUrl: './chat-layout.component.html',
-  styleUrl: './chat-layout.component.css'
+  styleUrl: './chat-layout.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ChatLayoutComponent {
   private route = inject(ActivatedRoute);
