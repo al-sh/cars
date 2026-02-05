@@ -31,10 +31,26 @@
 ### Инфраструктура
 - [infrastructure/database.md](infrastructure/database.md) — схема БД
 - [infrastructure/deployment.md](infrastructure/deployment.md) — Docker, деплой
+- [infrastructure/deepseek-integration.md](infrastructure/deepseek-integration.md) — интеграция с DeepSeek API
 
 ---
 
 ## Как использовать с LLM
+
+### Для работы с архитектурой и требованиями
+
+Агент по архитектуре автоматически активируется через `.cursorrules`. Для явного использования:
+
+```
+@.cursor/architecture-agent.md
+@requirements/CONTEXT.md
+@requirements/contracts/types.md
+@requirements/frontend/chat.md (или другие релевантные требования)
+
+[Ваш вопрос по архитектуре или требованиям]
+```
+
+**Примечание:** Агент находится в `.cursor/architecture-agent.md`. Подробности работы агента описаны в самом файле.
 
 ### Для генерации UI чата
 
