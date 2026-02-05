@@ -7,7 +7,7 @@ Server-Sent Events используется для потоковой перед
 ## Endpoint
 
 ```
-GET /api/v1/chats/{chat_id}/stream?message_id={message_id}
+GET /api/v1/chats/{chatId}/stream?messageId={messageId}
 ```
 
 **Headers:**
@@ -26,7 +26,7 @@ Authorization: Bearer {token}
 
 ```
 event: message_start
-data: {"message_id": "msg_789", "chat_id": "chat_123"}
+data: {"messageId": "msg_789", "chatId": "chat_123"}
 ```
 
 ### status
@@ -72,10 +72,10 @@ data: {"delta": "в вашем бюджете:"}
 
 ```
 event: message_end
-data: {"message_id": "msg_789", "finish_reason": "stop"}
+data: {"messageId": "msg_789", "finishReason": "stop"}
 ```
 
-**finish_reason:**
+**finishReason:**
 - `stop` — нормальное завершение
 - `length` — достигнут лимит токенов
 
@@ -112,11 +112,11 @@ data: {}
 ### Успешный поиск
 
 ```
-→ GET /api/v1/chats/chat_123/stream?message_id=msg_456
+→ GET /api/v1/chats/chat_123/stream?messageId=msg_456
 ← Accept: text/event-stream
 
 event: message_start
-data: {"message_id": "msg_789", "chat_id": "chat_123"}
+data: {"messageId": "msg_789", "chatId": "chat_123"}
 
 event: status
 data: {"stage": "extracting"}
@@ -146,14 +146,14 @@ event: content_delta
 data: {"delta": "Хотите подробнее о каком-то варианте?"}
 
 event: message_end
-data: {"message_id": "msg_789", "finish_reason": "stop"}
+data: {"messageId": "msg_789", "finishReason": "stop"}
 ```
 
 ### Требуется уточнение (нет поиска)
 
 ```
 event: message_start
-data: {"message_id": "msg_790", "chat_id": "chat_123"}
+data: {"messageId": "msg_790", "chatId": "chat_123"}
 
 event: status
 data: {"stage": "extracting"}
@@ -171,14 +171,14 @@ event: content_delta
 data: {"delta": "2. Какой тип кузова предпочитаете?"}
 
 event: message_end
-data: {"message_id": "msg_790", "finish_reason": "stop"}
+data: {"messageId": "msg_790", "finishReason": "stop"}
 ```
 
 ### Ошибка
 
 ```
 event: message_start
-data: {"message_id": "msg_791", "chat_id": "chat_123"}
+data: {"messageId": "msg_791", "chatId": "chat_123"}
 
 event: status
 data: {"stage": "extracting"}
@@ -204,8 +204,8 @@ type SSEEventType =
   | 'ping';
 
 interface MessageStartData {
-  message_id: string;
-  chat_id: string;
+  messageId: string;
+  chatId: string;
 }
 
 interface StatusData {
@@ -217,8 +217,8 @@ interface ContentDeltaData {
 }
 
 interface MessageEndData {
-  message_id: string;
-  finish_reason: 'stop' | 'length';
+  messageId: string;
+  finishReason: 'stop' | 'length';
 }
 
 interface SSEErrorData {
@@ -234,7 +234,7 @@ interface SSEErrorData {
 export class ChatService {
   
   streamResponse(chatId: string, messageId: string): Observable<SSEEvent> {
-    const url = `/api/v1/chats/${chatId}/stream?message_id=${messageId}`;
+    const url = `/api/v1/chats/${chatId}/stream?messageId=${messageId}`;
     
     return new Observable(observer => {
       const eventSource = new EventSource(url);

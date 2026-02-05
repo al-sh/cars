@@ -15,7 +15,7 @@ interface User {
   email: string;
   name: string;
   role: 'client' | 'manager' | 'admin';
-  created_at: string;  // ISO 8601
+  createdAt: string;  // ISO 8601
 }
 ```
 
@@ -44,11 +44,11 @@ public enum UserRole {
 ```typescript
 interface Chat {
   id: string;
-  user_id: string;
+  userId: string;
   title: string | null;
-  created_at: string;
-  updated_at: string;
-  message_count: number;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
 }
 ```
 
@@ -74,10 +74,10 @@ public record ChatDto(
 ```typescript
 interface Message {
   id: string;
-  chat_id: string;
+  chatId: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  created_at: string;
+  createdAt: string;
 }
 ```
 
@@ -110,16 +110,16 @@ interface Car {
   model: string;
   year: number;
   price: number;
-  body_type: BodyType;
-  engine_type: EngineType;
-  engine_volume: number;      // литры
-  power_hp: number;           // лошадиные силы
+  bodyType: BodyType;
+  engineType: EngineType;
+  engineVolume: number;      // литры
+  powerHp: number;           // лошадиные силы
   transmission: Transmission;
   drive: DriveType;
   seats: number;
-  fuel_consumption: number;   // л/100км
+  fuelConsumption: number;   // л/100км
   description: string | null;
-  image_url: string | null;
+  imageUrl: string | null;
 }
 
 type BodyType = 'sedan' | 'suv' | 'hatchback' | 'wagon' | 'minivan' | 'coupe' | 'pickup';
@@ -174,16 +174,16 @@ public enum DriveType {
 **TypeScript:**
 ```typescript
 interface CarSearchCriteria {
-  min_price?: number;
-  max_price: number;          // Обязательный
-  body_type?: BodyType;
-  engine_type?: EngineType;
+  priceMin?: number;
+  priceMax: number;          // Обязательный
+  bodyType?: BodyType;
+  engineType?: EngineType;
   brand?: string;
   seats?: number;
   transmission?: Transmission;
   drive?: DriveType;
-  year_min?: number;
-  year_max?: number;
+  yearMin?: number;
+  yearMax?: number;
 }
 ```
 
@@ -192,8 +192,8 @@ interface CarSearchCriteria {
 @Data
 @Builder
 public class CarSearchCriteria {
-    private Integer minPrice;
-    private Integer maxPrice;      // Обязательный
+    private Integer priceMin;
+    private Integer priceMax;      // Обязательный
     private BodyType bodyType;
     private EngineType engineType;
     private String brand;
@@ -208,7 +208,7 @@ public class CarSearchCriteria {
 ### Правила готовности к поиску
 
 Поиск выполняется когда:
-1. Указан `max_price` (обязательный)
+1. Указан `priceMax` (обязательный)
 2. Указано **минимум 2 дополнительных параметра** из списка выше
 
 Если условия не выполнены — LLM задаёт уточняющие вопросы.
@@ -225,13 +225,13 @@ interface PaginatedResponse<T> {
   items: T[];
   total: number;
   page: number;
-  per_page: number;
+  perPage: number;
 }
 
 // Для infinite scroll
 interface CursorResponse<T> {
   items: T[];
-  has_more: boolean;
+  hasMore: boolean;
 }
 ```
 
@@ -260,8 +260,8 @@ public record CursorResponse<T>(
 ```typescript
 interface AuthResponse {
   user: User;
-  access_token: string;
-  refresh_token: string;
+  accessToken: string;
+  refreshToken: string;
 }
 
 interface LoginRequest {

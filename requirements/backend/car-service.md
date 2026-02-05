@@ -52,13 +52,13 @@ public class CarController {
     
     @GetMapping
     public PagedResponse<CarDto> searchCars(
-        @RequestParam(required = false) Integer minPrice,
-        @RequestParam(required = false) Integer maxPrice,
+        @RequestParam(required = false) Integer priceMin,
+        @RequestParam(required = false) Integer priceMax,
         @RequestParam(required = false) BodyType bodyType,
         @RequestParam(required = false) EngineType engineType,
         @RequestParam(required = false) String brand,
-        @RequestParam(required = false) Integer minYear,
-        @RequestParam(required = false) Integer maxYear,
+        @RequestParam(required = false) Integer yearMin,
+        @RequestParam(required = false) Integer yearMax,
         @RequestParam(required = false) Integer seats,
         @RequestParam(required = false) Transmission transmission,
         @RequestParam(required = false) DriveType drive,
@@ -69,13 +69,13 @@ public class CarController {
         @RequestParam(defaultValue = "20") int perPage
     ) {
         CarSearchCriteria criteria = CarSearchCriteria.builder()
-            .minPrice(minPrice)
-            .maxPrice(maxPrice)
+            .priceMin(priceMin)
+            .priceMax(priceMax)
             .bodyType(bodyType)
             .engineType(engineType)
             .brand(brand)
-            .minYear(minYear)
-            .maxYear(maxYear)
+            .yearMin(yearMin)
+            .yearMax(yearMax)
             .seats(seats)
             .transmission(transmission)
             .drive(drive)
@@ -156,14 +156,14 @@ public class CarService {
     private Specification<Car> buildSpecification(CarSearchCriteria criteria) {
         Specification<Car> spec = Specification.where(null);
         
-        if (criteria.minPrice() != null) {
+        if (criteria.priceMin() != null) {
             spec = spec.and((root, query, cb) -> 
-                cb.greaterThanOrEqualTo(root.get("price"), criteria.minPrice()));
+                cb.greaterThanOrEqualTo(root.get("price"), criteria.priceMin()));
         }
         
-        if (criteria.maxPrice() != null) {
+        if (criteria.priceMax() != null) {
             spec = spec.and((root, query, cb) -> 
-                cb.lessThanOrEqualTo(root.get("price"), criteria.maxPrice()));
+                cb.lessThanOrEqualTo(root.get("price"), criteria.priceMax()));
         }
         
         if (criteria.bodyType() != null) {
@@ -181,14 +181,14 @@ public class CarService {
                 cb.equal(cb.lower(root.get("brand")), criteria.brand().toLowerCase()));
         }
         
-        if (criteria.minYear() != null) {
+        if (criteria.yearMin() != null) {
             spec = spec.and((root, query, cb) -> 
-                cb.greaterThanOrEqualTo(root.get("year"), criteria.minYear()));
+                cb.greaterThanOrEqualTo(root.get("year"), criteria.yearMin()));
         }
         
-        if (criteria.maxYear() != null) {
+        if (criteria.yearMax() != null) {
             spec = spec.and((root, query, cb) -> 
-                cb.lessThanOrEqualTo(root.get("year"), criteria.maxYear()));
+                cb.lessThanOrEqualTo(root.get("year"), criteria.yearMax()));
         }
         
         if (criteria.seats() != null) {

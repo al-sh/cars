@@ -67,6 +67,26 @@ private _isLoading = signal(false);
 - **Формат:** `app-feature-name` (например, `app-chat-list`, `app-message-item`)
 - Префикс `app-` для всех компонентов приложения
 
+### API и контракты
+
+**Правило:** Все параметры API и поля в контрактах используют `camelCase`.
+
+**Порядок слов:** Сначала сущность, потом уточнение (min/max, start/end, и т.д.)
+
+**Примеры:**
+- ✅ `yearMin`, `yearMax` (год от/до)
+- ✅ `priceMin`, `priceMax` (цена от/до)
+- ✅ `createdAt`, `updatedAt` (дата создания/обновления)
+- ❌ `min_year`, `max_year` (неправильно)
+- ❌ `year_min`, `year_max` (неправильно)
+- ❌ `minYear`, `maxYear` (неправильный порядок)
+
+**Применяется к:**
+- Query параметры REST API
+- Поля в TypeScript типах (`contracts/types.md`)
+- Поля в Java DTO (`contracts/types.md`)
+- JSON структуры для LLM (`domain/llm-prompts.md`)
+
 ---
 
 ## Angular
@@ -257,19 +277,28 @@ getChatById(chatId: string) {
 ### Коммиты
 
 - ✅ **Сообщения коммитов на русском языке**
-- ✅ **Описание:** Краткое и понятное описание изменений
+- ✅ **Описание:** Краткое и понятное описание изменений (до 50-60 символов)
 - ✅ **Начинать с заглавной буквы**
+- ✅ **Без подробностей** — детали видны в diff
+- ✅ **Одна строка** — без многострочных описаний
 
 **Примеры:**
 
 ```bash
 # ✅ Правильно
-git commit -m "Реализован этап 2 - роутинг и ChatLayout компонент"
-git commit -m "Исправлена ошибка отображения chatId в шаблоне"
+git commit -m "Унифицирован нейминг в контрактах к camelCase"
+git commit -m "Реализован роутинг и ChatLayout компонент"
+git commit -m "Исправлена ошибка отображения chatId"
 git commit -m "Добавлен readonly модификатор к chatId signal"
-git commit -m "Обновлена документация по использованию Signals"
+git commit -m "Обновлена документация по Signals"
 
 # ❌ Неправильно
+git commit -m "Унифицирован нейминг в контрактах: приведение к camelCase
+
+- Исправлен нейминг параметров года: yearMin/yearMax (вместо min_year/max_year)
+- Приведены все TypeScript типы к camelCase (userId, chatId, bodyType, engineType и т.д.)
+- Обновлены API query params и JSON поля в контрактах
+..."
 git commit -m "реализован этап 2 - роутинг и ChatLayout компонент"
 git commit -m "feat: implement stage 2 - routing and ChatLayout component"
 git commit -m "fix bug"

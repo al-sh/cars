@@ -24,8 +24,8 @@ Base URL: `/api/v1`
 ```json
 {
   "user": User,
-  "access_token": "eyJhbG...",
-  "refresh_token": "eyJhbG..."
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG..."
 }
 ```
 
@@ -46,8 +46,8 @@ Base URL: `/api/v1`
 ```json
 {
   "user": User,
-  "access_token": "eyJhbG...",
-  "refresh_token": "eyJhbG..."
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG..."
 }
 ```
 
@@ -59,15 +59,15 @@ Base URL: `/api/v1`
 **Request:**
 ```json
 {
-  "refresh_token": "eyJhbG..."
+  "refreshToken": "eyJhbG..."
 }
 ```
 
 **Response 200:**
 ```json
 {
-  "access_token": "eyJhbG...",
-  "refresh_token": "eyJhbG..."
+  "accessToken": "eyJhbG...",
+  "refreshToken": "eyJhbG..."
 }
 ```
 
@@ -87,7 +87,7 @@ Base URL: `/api/v1`
 | Параметр | Тип | Default | Описание |
 |----------|-----|---------|----------|
 | page | int | 1 | Номер страницы |
-| per_page | int | 20 | Элементов на странице (max: 50) |
+| perPage | int | 20 | Элементов на странице (max: 50) |
 | search | string | — | Поиск по названию |
 
 **Response 200:**
@@ -96,7 +96,7 @@ Base URL: `/api/v1`
   "items": [Chat],
   "total": 42,
   "page": 1,
-  "per_page": 20
+  "perPage": 20
 }
 ```
 
@@ -153,7 +153,7 @@ Base URL: `/api/v1`
 ```json
 {
   "items": [Message],
-  "has_more": true
+  "hasMore": true
 }
 ```
 
@@ -170,8 +170,8 @@ Base URL: `/api/v1`
 **Response 201:**
 ```json
 {
-  "user_message": Message,
-  "stream_url": "/chats/{id}/stream?message_id=msg_789"
+  "userMessage": Message,
+  "streamUrl": "/chats/{id}/stream?messageId=msg_789"
 }
 ```
 
@@ -188,7 +188,7 @@ Base URL: `/api/v1`
 | Параметр | Тип | Default | Описание |
 |----------|-----|---------|----------|
 | page | int | 1 | Номер страницы |
-| per_page | int | 20 | Элементов на странице |
+| perPage | int | 20 | Элементов на странице |
 | search | string | — | Поиск по имени/email |
 | role | string | — | Фильтр по роли |
 
@@ -198,7 +198,7 @@ Base URL: `/api/v1`
   "items": [User],
   "total": 100,
   "page": 1,
-  "per_page": 20
+  "perPage": 20
 }
 ```
 
@@ -228,18 +228,18 @@ Base URL: `/api/v1`
 **Query params:**
 | Параметр | Тип | Описание |
 |----------|-----|----------|
-| min_price | int | Минимальная цена |
-| max_price | int | Максимальная цена |
-| body_type | string | Тип кузова |
-| engine_type | string | Тип двигателя |
+| priceMin | int | Минимальная цена |
+| priceMax | int | Максимальная цена |
+| bodyType | string | Тип кузова |
+| engineType | string | Тип двигателя |
 | brand | string | Марка |
-| min_year | int | Год от |
-| max_year | int | Год до |
+| yearMin | int | Год от |
+| yearMax | int | Год до |
 | seats | int | Количество мест |
 | transmission | string | Тип КПП |
 | drive | string | Тип привода |
 | page | int | Страница |
-| per_page | int | На странице |
+| perPage | int | На странице |
 
 **Response 200:**
 ```json
@@ -247,7 +247,7 @@ Base URL: `/api/v1`
   "items": [Car],
   "total": 150,
   "page": 1,
-  "per_page": 20
+  "perPage": 20
 }
 ```
 

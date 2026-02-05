@@ -270,7 +270,7 @@ public class MessageService {
         // 5. Вернуть user_message + stream_url
         return new SendMessageResponse(
             MessageDto.from(userMessage),
-            "/api/v1/chats/" + chatId + "/stream?message_id=" + userMessage.getId()
+            "/api/v1/chats/" + chatId + "/stream?messageId=" + userMessage.getId()
         );
     }
     
@@ -291,13 +291,13 @@ public class MessageService {
             .orElseThrow(() -> new MessageNotFoundException(userMessageId));
         
         // Emit start event
-        sink.next(sseEvent("message_start", Map.of("message_id", UUID.randomUUID())));
+        sink.next(sseEvent("message_start", Map.of("messageId", UUID.randomUUID())));
         
         // Step 1: Guard check — проверка релевантности запроса
         GuardResult guardResult = llmService.checkRelevance(userMessage.getContent());
         if (!guardResult.isRelevant()) {
             streamText(sink, guardResult.getRejectionResponse());
-            sink.next(sseEvent("message_end", Map.of("finish_reason", "guard")));
+            sink.next(sseEvent("message_end", Map.of("finishReason", "guard")));
             sink.complete();
             return;
         }
@@ -339,8 +339,8 @@ public class MessageService {
         
         // Emit end event
         sink.next(sseEvent("message_end", Map.of(
-            "message_id", assistantMessage.getId(),
-            "finish_reason", "stop"
+            "messageId", assistantMessage.getId(),
+            "finishReason", "stop"
         )));
         
         sink.complete();
@@ -646,8 +646,8 @@ public class LLMService {
     
     private String buildFormatInput(String userCriteria, List<Car> cars) {
         Map<String, Object> input = Map.of(
-            "user_criteria", userCriteria,
-            "results_count", cars.size(),
+            "userCriteria", userCriteria,
+            "resultsCount", cars.size(),
             "results", cars.stream()
                 .map(this::carToMap)
                 .limit(10)
@@ -995,7 +995,7 @@ public class LLMTestConfig {
                     .bodyType(BodyType.SUV)
                     .engineType(EngineType.PETROL)
                     .transmission(Transmission.AUTOMATIC)
-                    .maxPrice(3000000)
+                    .priceMax(3000000)
                     .build())
                 .build());
         
