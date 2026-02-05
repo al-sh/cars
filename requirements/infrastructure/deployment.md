@@ -12,18 +12,18 @@ Docker Compose для локальной разработки и развёрт�
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Docker Network                           │
 │                                                                  │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐  │
-│  │  nginx   │    │ backend  │    │ postgres │    │  ollama  │  │
-│  │  :80     │───▶│  :8080   │───▶│  :5432   │    │  :11434  │  │
-│  │          │    │          │───────────────────▶│          │  │
-│  └──────────┘    └──────────┘    └──────────┘    └──────────┘  │
-│       │                                                         │
-│       │ serves static                                           │
-│       ▼                                                         │
-│  ┌──────────┐                                                   │
-│  │ frontend │                                                   │
-│  │ (built)  │                                                   │
-│  └──────────┘                                                   │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐                 │
+│  │  nginx   │    │ backend  │    │ postgres │                 │
+│  │  :80     │───▶│  :8080   │───▶│  :5432   │                 │
+│  │          │    │          │    │          │                 │
+│  └──────────┘    └──────────┘    └──────────┘                 │
+│       │                │                                         │
+│       │ serves static  │ HTTP API                                │
+│       ▼                ▼                                         │
+│  ┌──────────┐    ┌──────────────────────────────────────┐      │
+│  │ frontend │    │      DeepSeek API (external)          │      │
+│  │ (built)  │    │      https://api.deepseek.com        │      │
+│  └──────────┘    └──────────────────────────────────────┘      │
 └─────────────────────────────────────────────────────────────────┘
         │
         │ :80
@@ -67,12 +67,12 @@ services:
       - DB_USERNAME=carsai
       - DB_PASSWORD=${DB_PASSWORD:-carsai}
       - JWT_SECRET=${JWT_SECRET:-your-256-bit-secret-key-here-change-in-production}
-      - LLM_BASE_URL=http://ollama:11434
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - LLM_BASE_URL=https://api.deepseek.com
+      - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
     depends_on:
       postgres:
         condition: service_healthy
-      ollama:
-        condition: service_started
     networks:
       - carsai
     healthcheck:
@@ -98,25 +98,12 @@ services:
       timeout: 5s
       retries: 5
 
-  # LLM
-  ollama:
-    image: ollama/ollama:latest
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - carsai
-    deploy:
-      resources:
-        reservations:
-          memory: 8G
-
 networks:
   carsai:
     driver: bridge
 
 volumes:
   postgres_data:
-  ollama_data:
 ```
 
 ---
@@ -231,7 +218,9 @@ spring:
     password: ${DB_PASSWORD}
 
 llm:
+  api-key: ${DEEPSEEK_API_KEY}
   base-url: ${LLM_BASE_URL}
+  model: ${LLM_MODEL}
 
 jwt:
   secret: ${JWT_SECRET}
@@ -285,9 +274,11 @@ docker compose up -d
 echo "⏳ Waiting for services..."
 sleep 10
 
-# Загрузка модели Ollama
-echo "🤖 Pulling LLM model..."
-docker compose exec ollama ollama pull qwen2.5:7b
+# Проверка наличия API ключа
+if [ -z "$DEEPSEEK_API_KEY" ]; then
+    echo "⚠️  Warning: DEEPSEEK_API_KEY not set. Set it in .env file or environment."
+    echo "   Get your API key at: https://platform.deepseek.com/api_keys"
+fi
 
 echo "✅ CarsAI is running at http://localhost"
 ```
@@ -323,8 +314,9 @@ DB_PASSWORD=your_secure_password
 # JWT
 JWT_SECRET=your-256-bit-secret-key-here-minimum-32-characters
 
-# LLM
-LLM_MODEL=qwen2.5:7b
+# DeepSeek API
+DEEPSEEK_API_KEY=your-deepseek-api-key-here
+LLM_MODEL=deepseek-chat
 ```
 
 ---
@@ -335,19 +327,20 @@ LLM_MODEL=qwen2.5:7b
 
 | Ресурс | Значение |
 |--------|----------|
-| CPU | 4 cores |
-| RAM | 16 GB |
-| Disk | 20 GB |
+| CPU | 2 cores |
+| RAM | 4 GB |
+| Disk | 10 GB |
 | OS | Linux, macOS, Windows (WSL2) |
+| Network | Доступ к интернету (для DeepSeek API) |
 
 ### Рекомендуемые
 
 | Ресурс | Значение |
 |--------|----------|
-| CPU | 8 cores |
-| RAM | 32 GB |
-| Disk | 50 GB SSD |
-| GPU | NVIDIA 8GB+ (для ускорения LLM) |
+| CPU | 4 cores |
+| RAM | 8 GB |
+| Disk | 20 GB SSD |
+| Network | Стабильное интернет-соединение |
 
 ---
 
@@ -362,8 +355,8 @@ curl http://localhost/api/actuator/health
 # Database
 docker compose exec postgres pg_isready
 
-# Ollama
-curl http://localhost:11434/api/tags
+# DeepSeek API (проверка доступности через backend health check)
+curl http://localhost/api/actuator/health
 ```
 
 ### Логи
@@ -374,24 +367,27 @@ docker compose logs -f
 
 # Конкретный сервис
 docker compose logs -f backend
-docker compose logs -f ollama
 ```
 
 ---
 
 ## Troubleshooting
 
-### Ollama не отвечает
+### DeepSeek API недоступен
 
 ```bash
-# Проверить статус
-docker compose ps ollama
+# Проверить API ключ
+echo $DEEPSEEK_API_KEY
 
-# Перезапустить
-docker compose restart ollama
+# Проверить логи backend для ошибок API
+docker compose logs backend | grep -i "deepseek\|llm"
 
-# Проверить модель
-docker compose exec ollama ollama list
+# Проверить доступность API
+curl -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+     https://api.deepseek.com/v1/models
+
+# Если ошибка 401 - неверный API ключ
+# Если ошибка 429 - превышен rate limit
 ```
 
 ### База данных не подключается
@@ -414,30 +410,33 @@ docker compose restart nginx
 
 ---
 
-## GPU поддержка (опционально)
+## Примечания по DeepSeek API
 
-### docker-compose.gpu.yml
+### Получение API ключа
 
-```yaml
-version: '3.8'
+1. Зарегистрируйтесь на https://platform.deepseek.com
+2. Перейдите в раздел API Keys
+3. Создайте новый ключ
+4. Добавьте ключ в `.env` файл: `DEEPSEEK_API_KEY=your-key-here`
 
-services:
-  ollama:
-    image: ollama/ollama:latest
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - carsai
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-```
+### Rate Limiting
 
-```bash
-# Запуск с GPU
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
-```
+DeepSeek API имеет ограничения на количество запросов в зависимости от тарифа:
+- Бесплатный тариф: ограниченное количество запросов
+- Платные тарифы: более высокие лимиты
+
+**Реализовано в backend:**
+- ✅ Retry с exponential backoff при ошибке 429 (3 попытки: 1s, 2s, 4s)
+- ✅ Логирование токенов для мониторинга затрат
+- ✅ Метрики использования через Micrometer
+
+**Рекомендации:**
+- Мониторить метрики `chat.llm.tokens` для контроля расходов
+- Настроить алерты при превышении лимитов токенов
+- Рассмотреть кэширование для повторяющихся запросов (опционально для MVP)
+
+### Безопасность
+
+⚠️ **Важно:** Никогда не коммитьте API ключ в репозиторий!
+- Используйте `.env` файл (добавлен в `.gitignore`)
+- В production используйте секреты Docker/Kubernetes или переменные окружения

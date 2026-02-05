@@ -21,6 +21,8 @@
 
 **Принцип:** Backend управляет всем процессом. LLM не имеет доступа к БД. Направление запросов только Backend → LLM.
 
+**Абстракция провайдера:** Используется интерфейс `LLMProvider` для возможности смены провайдера в будущем без изменения бизнес-логики.
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                      Controller                          │
@@ -35,6 +37,15 @@
 │                    ▼                   ▼                │
 │              LLMService          CarService             │
 │          (Extract/Format)        (Search DB)            │
+│                    │                                     │
+│                    ▼                                     │
+│            LLMProvider (interface)                      │
+│                    │                                     │
+│                    ▼                                     │
+│         DeepSeekLLMProvider (implementation)            │
+│                    │                                     │
+│                    ▼                                     │
+│            DeepSeek API (external)                      │
 └─────────────────┬───────────────────┬───────────────────┘
                   │                   │
 ┌─────────────────▼───────────────────▼───────────────────┐
@@ -352,7 +363,201 @@ public class MessageService {
 }
 ```
 
+## Абстракция LLM провайдера
+
+Для возможности смены провайдера в будущем используется интерфейс `LLMProvider`.
+
+```java
+public interface LLMProvider {
+    /**
+     * Выполняет запрос к LLM API.
+     * 
+     * @param systemPrompt системный промт
+     * @param userMessage сообщение пользователя
+     * @param temperature температура (0.0-1.0)
+     * @return ответ от LLM
+     * @throws LLMTimeoutException при таймауте
+     * @throws LLMRateLimitException при превышении rate limit
+     * @throws LLMUnavailableException при недоступности сервиса
+     */
+    LLMResponse chat(String systemPrompt, String userMessage, double temperature);
+    
+    /**
+     * Возвращает статистику использования токенов для последнего запроса.
+     */
+    TokenUsage getLastTokenUsage();
+}
+
+@Data
+@Builder
+public class LLMResponse {
+    private String content;
+    private TokenUsage tokenUsage;
+}
+
+@Data
+@Builder
+public class TokenUsage {
+    private Integer promptTokens;
+    private Integer completionTokens;
+    private Integer totalTokens;
+}
+```
+
+### DeepSeekLLMProvider
+
+Реализация для DeepSeek API с retry логикой и мониторингом.
+
+```java
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DeepSeekLLMProvider implements LLMProvider {
+    
+    private final WebClient deepseekClient;
+    private final ObjectMapper objectMapper;
+    
+    @Value("${llm.api-key}")
+    private String apiKey;
+    
+    @Value("${llm.model}")
+    private String model;
+    
+    @Value("${llm.timeout}")
+    private Duration timeout;
+    
+    @Value("${llm.retry.max-attempts:3}")
+    private int maxRetryAttempts;
+    
+    @Value("${llm.retry.initial-delay:1s}")
+    private Duration initialRetryDelay;
+    
+    private TokenUsage lastTokenUsage;
+    
+    @Override
+    public LLMResponse chat(String systemPrompt, String userMessage, double temperature) {
+        return chatWithRetry(systemPrompt, userMessage, temperature, 0);
+    }
+    
+    private LLMResponse chatWithRetry(String systemPrompt, String userMessage, 
+                                     double temperature, int attempt) {
+        try {
+            DeepSeekRequest request = DeepSeekRequest.builder()
+                .model(model)
+                .messages(List.of(
+                    new ChatMessage("system", systemPrompt),
+                    new ChatMessage("user", userMessage)
+                ))
+                .temperature(temperature)
+                .maxTokens(1024)
+                .stream(false)
+                .build();
+            
+            DeepSeekResponse response = deepseekClient.post()
+                .uri("/v1/chat/completions")
+                .header("Authorization", "Bearer " + apiKey)
+                .header("Content-Type", "application/json")
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(DeepSeekResponse.class)
+                .timeout(timeout)
+                .block();
+            
+            // Сохраняем статистику токенов для мониторинга затрат
+            if (response.getUsage() != null) {
+                lastTokenUsage = TokenUsage.builder()
+                    .promptTokens(response.getUsage().getPromptTokens())
+                    .completionTokens(response.getUsage().getCompletionTokens())
+                    .totalTokens(response.getUsage().getTotalTokens())
+                    .build();
+                
+                // Логируем для мониторинга затрат
+                log.info("LLM token usage - prompt: {}, completion: {}, total: {}",
+                    lastTokenUsage.getPromptTokens(),
+                    lastTokenUsage.getCompletionTokens(),
+                    lastTokenUsage.getTotalTokens());
+                
+                // Записываем метрики (если ChatMetrics доступен через DI)
+                // chatMetrics.recordTokenUsage(lastTokenUsage);
+            }
+            
+            String content = response.getChoices().get(0).getMessage().getContent();
+            return LLMResponse.builder()
+                .content(content)
+                .tokenUsage(lastTokenUsage)
+                .build();
+                
+        } catch (TimeoutException e) {
+            log.warn("LLM request timeout (attempt {}/{})", attempt + 1, maxRetryAttempts);
+            throw new LLMTimeoutException();
+            
+        } catch (HttpStatusCodeException e) {
+            int statusCode = e.getStatusCode().value();
+            
+            if (statusCode == 429) {
+                // Rate limit - retry с exponential backoff
+                if (attempt < maxRetryAttempts) {
+                    Duration delay = calculateRetryDelay(attempt);
+                    log.warn("Rate limit hit, retrying after {} (attempt {}/{})", 
+                        delay, attempt + 1, maxRetryAttempts);
+                    try {
+                        Thread.sleep(delay.toMillis());
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new LLMRateLimitException("Retry interrupted");
+                    }
+                    return chatWithRetry(systemPrompt, userMessage, temperature, attempt + 1);
+                }
+                throw new LLMRateLimitException("Превышен лимит запросов к DeepSeek API");
+                
+            } else if (statusCode == 401) {
+                // Неверный API ключ - не retry, логируем ошибку
+                log.error("Invalid DeepSeek API key. Check DEEPSEEK_API_KEY configuration.");
+                throw new LLMConfigurationException("Неверная конфигурация API ключа");
+                
+            } else if (statusCode == 503 || statusCode == 502) {
+                // Сервис недоступен - retry
+                if (attempt < maxRetryAttempts) {
+                    Duration delay = calculateRetryDelay(attempt);
+                    log.warn("Service unavailable ({}), retrying after {} (attempt {}/{})",
+                        statusCode, delay, attempt + 1, maxRetryAttempts);
+                    try {
+                        Thread.sleep(delay.toMillis());
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new LLMUnavailableException("Retry interrupted");
+                    }
+                    return chatWithRetry(systemPrompt, userMessage, temperature, attempt + 1);
+                }
+                throw new LLMUnavailableException("DeepSeek API временно недоступен");
+                
+            } else {
+                log.error("Unexpected HTTP error from DeepSeek API: {}", statusCode);
+                throw new LLMUnavailableException("Ошибка API: " + statusCode);
+            }
+            
+        } catch (WebClientException e) {
+            log.error("Network error calling DeepSeek API", e);
+            throw new LLMUnavailableException("Ошибка сети при обращении к DeepSeek API");
+        }
+    }
+    
+    private Duration calculateRetryDelay(int attempt) {
+        // Exponential backoff: 1s, 2s, 4s
+        long delayMillis = initialRetryDelay.toMillis() * (1L << attempt);
+        return Duration.ofMillis(delayMillis);
+    }
+    
+    @Override
+    public TokenUsage getLastTokenUsage() {
+        return lastTokenUsage;
+    }
+}
+```
+
 ### LLMService
+
+Основной сервис, использующий абстракцию провайдера.
 
 ```java
 @Service
@@ -360,14 +565,14 @@ public class MessageService {
 @Slf4j
 public class LLMService {
     
-    private final WebClient ollamaClient;
+    private final LLMProvider llmProvider;
     private final ObjectMapper objectMapper;
     
-    @Value("${llm.model}")
-    private String model;
+    @Value("${llm.temperature.extract:0.3}")
+    private double extractTemperature;
     
-    @Value("${llm.timeout}")
-    private Duration timeout;
+    @Value("${llm.temperature.format:0.7}")
+    private double formatTemperature;
     
     /**
      * Извлечение критериев поиска из сообщения пользователя.
@@ -376,9 +581,9 @@ public class LLMService {
     public ExtractResult extractCriteria(String userMessage) {
         String systemPrompt = loadPrompt("extract");
         
-        String response = chat(systemPrompt, userMessage);
+        LLMResponse response = llmProvider.chat(systemPrompt, userMessage, extractTemperature);
         
-        return parseExtractResult(response);
+        return parseExtractResult(response.getContent());
     }
     
     /**
@@ -390,7 +595,9 @@ public class LLMService {
         
         String input = buildFormatInput(userCriteria, cars);
         
-        return chat(systemPrompt, input);
+        LLMResponse response = llmProvider.chat(systemPrompt, input, formatTemperature);
+        
+        return response.getContent();
     }
     
     /**
@@ -400,9 +607,9 @@ public class LLMService {
     public GuardResult checkRelevance(String userMessage) {
         String systemPrompt = loadPrompt("guard");
         
-        String response = chat(systemPrompt, userMessage);
+        LLMResponse response = llmProvider.chat(systemPrompt, userMessage, 0.3);
         
-        return parseGuardResult(response);
+        return parseGuardResult(response.getContent());
     }
     
     /**
@@ -412,29 +619,16 @@ public class LLMService {
         String systemPrompt = "Придумай короткое название (3-5 слов) для чата о подборе автомобиля. " +
                               "Ответь только названием, без кавычек и пояснений.";
         
-        return chat(systemPrompt, firstMessage).trim();
+        LLMResponse response = llmProvider.chat(systemPrompt, firstMessage, 0.7);
+        
+        return response.getContent().trim();
     }
     
-    private String chat(String systemPrompt, String userMessage) {
-        OllamaRequest request = OllamaRequest.builder()
-            .model(model)
-            .messages(List.of(
-                new ChatMessage("system", systemPrompt),
-                new ChatMessage("user", userMessage)
-            ))
-            .stream(false)
-            .build();
-        
-        return ollamaClient.post()
-            .uri("/api/chat")
-            .bodyValue(request)
-            .retrieve()
-            .bodyToMono(OllamaResponse.class)
-            .timeout(timeout)
-            .map(OllamaResponse::getContent)
-            .onErrorMap(TimeoutException.class, e -> new LLMTimeoutException())
-            .onErrorMap(WebClientException.class, e -> new LLMUnavailableException())
-            .block();
+    /**
+     * Получить статистику использования токенов для последнего запроса.
+     */
+    public TokenUsage getLastTokenUsage() {
+        return llmProvider.getLastTokenUsage();
     }
     
     private ExtractResult parseExtractResult(String json) {
@@ -461,6 +655,101 @@ public class LLMService {
                 .toList()
         );
         return toJson(input);
+    }
+}
+```
+
+### DTO для DeepSeek API
+
+```java
+@Data
+@Builder
+public class DeepSeekRequest {
+    private String model;
+    private List<ChatMessage> messages;
+    private Double temperature;
+    private Integer maxTokens;
+    private Boolean stream;
+}
+
+@Data
+@Builder
+public class ChatMessage {
+    private String role;  // "system", "user", "assistant"
+    private String content;
+}
+
+@Data
+public class DeepSeekResponse {
+    private String id;
+    private String object;
+    private Long created;
+    private String model;
+    private List<Choice> choices;
+    private Usage usage;
+    
+    @Data
+    public static class Choice {
+        private Integer index;
+        private Message message;
+        private String finishReason;
+    }
+    
+    @Data
+    public static class Message {
+        private String role;
+        private String content;
+    }
+    
+    @Data
+    public static class Usage {
+        private Integer promptTokens;
+        private Integer completionTokens;
+        private Integer totalTokens;
+    }
+}
+```
+
+### Конфигурация Spring для выбора провайдера
+
+```java
+@Configuration
+public class LLMConfig {
+    
+    @Value("${llm.base-url}")
+    private String baseUrl;
+    
+    @Value("${llm.provider:deepseek}")
+    private String provider;
+    
+    @Bean
+    public WebClient deepseekClient() {
+        return WebClient.builder()
+            .baseUrl(baseUrl)
+            .defaultHeader("Content-Type", "application/json")
+            .codecs(configurer -> configurer
+                .defaultCodecs()
+                .maxInMemorySize(10 * 1024 * 1024)) // 10MB для больших ответов
+            .build();
+    }
+    
+    /**
+     * Выбор реализации LLMProvider в зависимости от конфигурации.
+     * Позволяет легко переключиться на другого провайдера в будущем.
+     */
+    @Bean
+    @Primary
+    public LLMProvider llmProvider(DeepSeekLLMProvider deepSeekProvider) {
+        return switch (provider.toLowerCase()) {
+            case "deepseek" -> deepSeekProvider;
+            // В будущем можно добавить другие провайдеры:
+            // case "openai" -> openAIProvider;
+            // case "anthropic" -> anthropicProvider;
+            default -> {
+                log.warn("Unknown LLM provider: {}, using deepseek", provider);
+                yield deepSeekProvider;
+            }
+        };
     }
 }
 ```
@@ -582,6 +871,36 @@ public class MessageRateLimiter {
 
 ---
 
+## Исключения
+
+```java
+public class LLMTimeoutException extends RuntimeException {
+    public LLMTimeoutException() {
+        super("Превышено время ожидания ответа от LLM");
+    }
+}
+
+public class LLMUnavailableException extends RuntimeException {
+    public LLMUnavailableException(String message) {
+        super(message);
+    }
+}
+
+public class LLMRateLimitException extends RuntimeException {
+    public LLMRateLimitException(String message) {
+        super(message);
+    }
+}
+
+public class LLMConfigurationException extends RuntimeException {
+    public LLMConfigurationException(String message) {
+        super(message);
+    }
+}
+```
+
+---
+
 ## Обработка ошибок
 
 ```java
@@ -612,10 +931,48 @@ public class ChatExceptionHandler {
         return ErrorResponse.of("llm_unavailable", "Сервис временно недоступен");
     }
     
+    @ExceptionHandler(LLMRateLimitException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ErrorResponse handleLLMRateLimit(LLMRateLimitException ex) {
+        return ErrorResponse.of("llm_rate_limit", ex.getMessage());
+    }
+    
+    @ExceptionHandler(LLMConfigurationException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleLLMConfiguration(LLMConfigurationException ex) {
+        // Не показываем детали пользователю, только логируем
+        log.error("LLM configuration error: {}", ex.getMessage());
+        return ErrorResponse.of("llm_config_error", "Ошибка конфигурации сервиса");
+    }
+    
     @ExceptionHandler(InvalidCriteriaException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleInvalidCriteria(InvalidCriteriaException ex) {
         return ErrorResponse.of("invalid_criteria", ex.getMessage());
+    }
+}
+```
+
+---
+
+## Конфигурация WebClient для DeepSeek
+
+```java
+@Configuration
+public class DeepSeekConfig {
+    
+    @Value("${llm.base-url}")
+    private String baseUrl;
+    
+    @Bean
+    public WebClient deepseekClient() {
+        return WebClient.builder()
+            .baseUrl(baseUrl)
+            .defaultHeader("Content-Type", "application/json")
+            .codecs(configurer -> configurer
+                .defaultCodecs()
+                .maxInMemorySize(10 * 1024 * 1024)) // 10MB для больших ответов
+            .build();
     }
 }
 ```
@@ -628,14 +985,21 @@ public class ChatExceptionHandler {
 # application.yml
 
 llm:
-  base-url: http://ollama:11434
-  model: qwen2.5:7b
+  provider: deepseek  # Выбор провайдера (deepseek, в будущем: openai, anthropic)
+  api-key: ${DEEPSEEK_API_KEY}  # Обязательно: API ключ из переменной окружения
+  base-url: https://api.deepseek.com
+  model: deepseek-chat  # или deepseek-reasoner для сложных задач
   timeout: 60s
   
   # Температура для разных режимов
   temperature:
     extract: 0.3  # Низкая для структурированных ответов
     format: 0.7   # Выше для креативного форматирования
+  
+  # Retry настройки для обработки временных ошибок
+  retry:
+    max-attempts: 3        # Максимум попыток при ошибке
+    initial-delay: 1s     # Начальная задержка (exponential backoff: 1s, 2s, 4s)
 
 rate-limit:
   messages-per-minute: 10
@@ -687,6 +1051,7 @@ public class ChatMetrics {
 - ChatService: CRUD операции, проверка владельца
 - MessageService: валидация, rate limiting, flow обработки
 - LLMService: парсинг JSON ответов, обработка ошибок
+- DeepSeekLLMProvider: retry логика, обработка ошибок, мониторинг токенов
 - CriteriaValidator: валидация критериев
 
 ### Integration tests
