@@ -1,0 +1,60 @@
+<!--
+  [formGroup]="messageForm" — привязывает FormGroup к <form> элементу.
+  Это говорит Angular: "Управляй этой формой через объект messageForm".
+  В React аналога нет — там каждый input управляется отдельно через useState.
+
+  (ngSubmit)="onSubmit()" — событие отправки формы.
+  ngSubmit предотвращает стандартное поведение формы (перезагрузку страницы)
+  и вызывает наш метод. Аналог onSubmit={e => { e.preventDefault(); ... }} в React.
+-->
+<form [formGroup]="messageForm" (ngSubmit)="onSubmit()">
+  <div class="input-wrapper">
+    <!--
+      formControlName="content" — привязывает этот textarea к FormControl с именем "content"
+      из messageForm. Angular автоматически синхронизирует значение textarea с FormControl.
+
+      (keydown.enter) — Angular позволяет подписываться на конкретные клавиши
+      через точечную нотацию: keydown.enter, keydown.escape и т.д.
+      Enter — отправить, Shift+Enter — перенос строки.
+
+      (input)="onInput($event)" — вызывается при каждом изменении текста.
+      Используется для авто-resize textarea (JS fallback для браузеров без field-sizing).
+
+      В React аналог:
+        <textarea value={content} onChange={handleChange} onKeyDown={handleKeyDown} />
+    -->
+    <textarea
+      formControlName="content"
+      placeholder="Введите сообщение..."
+      rows="1"
+      (keydown.enter)="onKeydown($event)"
+      (input)="onInput($event)"
+    ></textarea>
+
+    <!--
+      Счётчик символов — показываем только когда текст приближается к лимиту (>3500).
+      Это progressive disclosure — не перегружаем UI лишней информацией,
+      но предупреждаем пользователя заранее.
+
+      [class.warning] — условный CSS класс. Добавляется, когда текст превышает лимит.
+      Angular вычисляет выражение и добавляет/убирает класс автоматически.
+      В React аналог: className={contentLength > maxLength ? 'warning' : ''}
+    -->
+    @if (contentLength > charCountThreshold) {
+      <span class="char-count" [class.warning]="contentLength > maxLength">
+        {{ contentLength }}/{{ maxLength }}
+      </span>
+    }
+  </div>
+
+  <!--
+    [disabled] — кнопка заблокирована, если форма невалидна ИЛИ идёт отправка.
+    isSending() — вызов Signal, возвращает текущее значение (true/false).
+
+    В React:
+      <button disabled={!isValid || isSending}>
+  -->
+  <button type="submit" [disabled]="messageForm.invalid || isSending()">
+    {{ isSending() ? 'Отправка...' : 'Отправить' }}
+  </button>
+</form>

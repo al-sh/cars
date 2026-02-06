@@ -1,0 +1,112 @@
+/*
+  Форма ввода — горизонтальный layout: textarea + кнопка.
+  Используем flexbox для выравнивания элементов.
+*/
+form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/*
+  input-wrapper — оборачивает textarea и счётчик символов.
+  position: relative нужен для абсолютного позиционирования счётчика.
+  flex: 1 — занимает всё доступное пространство.
+*/
+.input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+/*
+  textarea — основное поле ввода.
+  width: 100% — растягиваем на всю ширину обёртки.
+
+  field-sizing: content — современный CSS (Chrome 123+), позволяет textarea
+  автоматически подстраивать высоту под содержимое. Если браузер не поддерживает,
+  используем JS fallback в методе onInput().
+  Это progressive enhancement — лучший опыт в новых браузерах,
+  рабочий fallback в старых.
+
+  resize: none — убираем стандартный ресайзер, т.к. авто-resize заменяет его.
+*/
+textarea {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  min-height: 40px;
+  max-height: 120px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  field-sizing: content;
+  resize: none;
+  overflow-y: hidden;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+/*
+  :focus — псевдокласс, активируется когда textarea в фокусе.
+  Меняем цвет рамки на primary для визуальной обратной связи.
+*/
+textarea:focus {
+  border-color: var(--color-primary);
+}
+
+/*
+  Счётчик символов — показывается в правом нижнем углу textarea.
+  position: absolute — позиционируется относительно .input-wrapper.
+*/
+.char-count {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+/*
+  .warning — когда лимит превышен, счётчик становится красным.
+  Это визуальный сигнал пользователю, что текст слишком длинный.
+*/
+.char-count.warning {
+  color: #ef4444;
+}
+
+/*
+  Кнопка отправки.
+  cursor: pointer — курсор "рука" при наведении.
+*/
+button {
+  padding: 10px 16px;
+  background-color: var(--color-primary);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+/*
+  :hover — при наведении мыши делаем кнопку чуть темнее.
+  filter: brightness(0.9) — универсальный способ затемнить любой цвет.
+*/
+button:hover:not(:disabled) {
+  filter: brightness(0.9);
+}
+
+/*
+  :disabled — стиль заблокированной кнопки.
+  opacity: 0.5 — полупрозрачность показывает, что кнопка неактивна.
+  cursor: not-allowed — курсор "запрещено".
+*/
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
