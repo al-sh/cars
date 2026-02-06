@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { Router } from '@angular/router';
 
 import { ChatService } from '../../../core/services/chat.service';
 import { ChatItemComponent } from './chat-item/chat-item.component';
@@ -36,6 +37,7 @@ export class ChatListComponent {
    * readonly — защита от случайного переопределения.
    */
   private readonly chatService = inject(ChatService);
+  private readonly router = inject(Router);
 
   /**
    * Геттер для списка чатов из сервиса.
@@ -78,6 +80,6 @@ export class ChatListComponent {
    * @param chatId - ID выбранного чата
    */
   onChatSelected(chatId: string): void {
-    this.chatService.selectChat(chatId);
+    this.router.navigate(['/chat', chatId]);
   }
 }

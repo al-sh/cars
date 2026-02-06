@@ -29,12 +29,3 @@ app-header {
   overflow: hidden;
 }
 
-/* Placeholder стили */
-.sidebar p,
-.content p {
-  color: var(--color-text-secondary);
-  font-size: 0.875rem;
-  margin: 0;
-  padding: 1rem;
-  text-align: center;
-}

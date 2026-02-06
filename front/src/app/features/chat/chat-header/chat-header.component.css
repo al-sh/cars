@@ -1,0 +1,47 @@
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: var(--color-bg);
+}
+
+.chat-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: background-color 0.2s ease;
+}
+
+.menu-button:hover:not(:disabled) {
+  background-color: var(--color-hover);
+}
+
+.menu-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.menu-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}

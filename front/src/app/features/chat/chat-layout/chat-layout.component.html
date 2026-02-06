@@ -6,10 +6,6 @@
   </aside>
   
   <main class="content">
-    @if (chatId()) {
-      <p>Выбран чат с ID: <strong>{{ chatId() }}</strong></p>
-    } @else {
-      <p>Content placeholder - выберите чат</p>
-    }
+    <app-chat-window />
   </main>
 </div>

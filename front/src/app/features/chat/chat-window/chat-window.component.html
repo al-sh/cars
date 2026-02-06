@@ -1,0 +1,17 @@
+@if (currentChat()) {
+  <app-chat-header />
+
+  <div class="messages-area">
+    <!-- TODO: Этап 9 — список сообщений -->
+    <p class="placeholder">Сообщения будут здесь (этап 9)</p>
+  </div>
+
+  <div class="input-area">
+    <!-- TODO: Этап 10 — поле ввода -->
+    <p class="placeholder">Поле ввода (этап 10)</p>
+  </div>
+} @else {
+  <div class="empty-state">
+    <p>Выберите чат или создайте новый</p>
+  </div>
+}
