@@ -1,11 +1,12 @@
-<!-- 
-  [class.active] - это привязка класса. Если выражение active() вернёт true,
-  то к элементу добавится CSS класс "active". Это динамическое управление классами.
-  
-  (click) - это event binding. Когда пользователь кликнет на элемент,
-  вызовется метод onSelect(). В React это было бы onClick={onSelect}.
+<!--
+  [class.active]="isActive" — условный класс.
+  Если isActive === true, добавляется CSS класс "active".
+  Это как className={isActive ? 'chat-item active' : 'chat-item'} в React,
+  но Angular делает это декларативно.
+
+  (click)="onSelect()" — обработчик клика, эмитит событие selected.
 -->
-<div class="chat-item" [class.active]="false" (click)="onSelect()">
+<div class="chat-item" [class.active]="isActive" (click)="onSelect()">
   <div class="chat-item-content">
     <!-- 
       chat.title ?? 'Новый чат' - это nullish coalescing оператор.

@@ -25,31 +25,25 @@
     />
   </div>
 
-  <!-- 
+  <!--
     Список чатов.
-    
+
     @for - это новый control flow синтаксис Angular 17+.
-    В старых версиях использовался *ngFor, но новый синтаксис более читаемый.
-    
-    Синтаксис: @for (item of items; track item.id) { ... }
-    
-    - chat of chats - перебираем массив chats
-    - track chat.id - ОЧЕНЬ ВАЖНО! Это говорит Angular, как идентифицировать
-      каждый элемент списка. Без track Angular пересоздаст все DOM-элементы
-      при любом изменении массива. С track - только изменённые элементы.
-      Это аналог key={chat.id} в React, но в Angular track ОБЯЗАТЕЛЕН.
-    
-    Внутри блока @for мы используем компонент app-chat-item:
-    - [chat]="chat" - передаём объект чата через @Input()
-    - (selected)="onChatSelected($event)" - подписываемся на событие selected.
-      Когда ChatItemComponent вызовет selected.emit(chatId), Angular автоматически
-      вызовет onChatSelected() с переданным значением.
-      $event - это специальная переменная, содержащая данные события.
+
+    Важные изменения на этапе 6:
+    - chats() вызывается как функция, потому что это Signal
+    - Добавлен [isActive] для подсветки выбранного чата
+    - currentChatId() тоже Signal, поэтому вызываем как функцию
+
+    Когда currentChatId изменится (через selectChat()), Angular автоматически
+    пересчитает выражение chat.id === currentChatId() и обновит класс active.
+    Это реактивность Signals в действии!
   -->
   <div class="chats-container">
-    @for (chat of chats; track chat.id) {
-      <app-chat-item 
-        [chat]="chat" 
+    @for (chat of chats(); track chat.id) {
+      <app-chat-item
+        [chat]="chat"
+        [isActive]="chat.id === currentChatId()"
         (selected)="onChatSelected($event)"
       />
     }

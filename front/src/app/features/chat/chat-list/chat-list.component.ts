@@ -1,39 +1,83 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { MOCK_CHATS } from '../../../core/mocks/mock-data';
-import { Chat } from '../../../core/models/chat.model';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+
+import { ChatService } from '../../../core/services/chat.service';
 import { ChatItemComponent } from './chat-item/chat-item.component';
 
+/**
+ * ChatListComponent — боковая панель со списком чатов.
+ *
+ * На этапе 6 мы подключили компонент к ChatService:
+ * - Данные приходят из сервиса, а не из прямого импорта моков
+ * - Выбор чата обновляет состояние в сервисе
+ * - Компонент реагирует на изменения через Signals
+ */
 @Component({
   selector: 'app-chat-list',
   standalone: true,
   imports: [ChatItemComponent],
   templateUrl: './chat-list.component.html',
   styleUrl: './chat-list.component.css',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatListComponent {
-  // Импортируем мок-данные напрямую.
-  // На этапе 4 мы используем статичные данные без сервиса.
-  // Позже (этап 6) мы заменим это на данные из ChatService.
-  // 
-  // readonly означает, что это свойство нельзя изменить после инициализации.
-  // Это хорошая практика для данных, которые не должны изменяться напрямую.
-  readonly chats: Chat[] = MOCK_CHATS;
+  /**
+   * inject() — современный способ внедрения зависимостей (DI) в Angular.
+   *
+   * Раньше зависимости передавались через конструктор:
+   *   constructor(private chatService: ChatService) {}
+   *
+   * Теперь можно использовать inject() напрямую в свойстве класса.
+   * Преимущества:
+   * - Меньше boilerplate кода
+   * - Работает не только в классах, но и в функциях
+   * - Проще для понимания — зависимость объявлена там, где используется
+   *
+   * private — сервис используется только внутри компонента.
+   * readonly — защита от случайного переопределения.
+   */
+  private readonly chatService = inject(ChatService);
 
-  // Метод для обработки клика на кнопку "+ Новый чат".
-  // Пока это заглушка - на этапе 13 мы реализуем реальное создание чата.
-  // Но уже сейчас мы показываем структуру: метод существует и готов к расширению.
-  onCreateNewChat(): void {
-    console.log('Создание нового чата (функционал будет добавлен на этапе 13)');
-    // TODO: Реализовать создание нового чата на этапе 13
+  /**
+   * Геттер для списка чатов из сервиса.
+   *
+   * chatService.chats — это Signal (readonly).
+   * В шаблоне мы вызываем его как функцию: chats()
+   *
+   * Почему геттер, а не просто свойство?
+   * Чтобы в шаблоне писать chats() вместо chatService.chats().
+   * Это инкапсуляция — шаблон не знает про сервис напрямую.
+   */
+  get chats() {
+    return this.chatService.chats;
   }
 
-  // Метод для обработки выбора чата из списка.
-  // ChatItemComponent "выбросит" событие selected с ID чата,
-  // и мы его здесь обработаем. Пока просто логируем.
-  // На этапе 6 мы подключим это к ChatService.
+  /**
+   * Геттер для ID текущего выбранного чата.
+   * Используется для подсветки активного элемента в списке.
+   */
+  get currentChatId() {
+    return this.chatService.currentChatId;
+  }
+
+  /**
+   * Создание нового чата.
+   * Пока заглушка — полная реализация на этапе 13.
+   */
+  onCreateNewChat(): void {
+    // TODO: Этап 13 — создание чата и навигация к нему
+    console.log('Создание нового чата (этап 13)');
+  }
+
+  /**
+   * Обработчик выбора чата.
+   *
+   * Вызывается когда ChatItemComponent эмитит событие selected.
+   * Мы передаём ID в сервис, который обновляет currentChatId.
+   * Благодаря Signals все подписанные компоненты автоматически обновятся.
+   *
+   * @param chatId - ID выбранного чата
+   */
   onChatSelected(chatId: string): void {
-    console.log('Выбран чат:', chatId);
-    // TODO: Подключить к ChatService.selectChat() на этапе 6
+    this.chatService.selectChat(chatId);
   }
 }

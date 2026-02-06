@@ -20,10 +20,9 @@
   background-color: rgba(59, 130, 246, 0.1); /* Легкий синий оттенок */
 }
 
-/* 
-  .active - класс для активного (выбранного) чата.
-  Пока мы используем [class.active]="false", но позже
-  заменим на реальное условие, когда подключим ChatService.
+/*
+  .active — класс для активного (выбранного) чата.
+  Добавляется через [class.active]="isActive" когда чат выбран.
 */
 .chat-item.active {
   background-color: var(--color-primary);
