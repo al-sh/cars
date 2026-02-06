@@ -40,3 +40,7 @@ requirements/       # Документация по архитектуре и т
 | `requirements/contracts/types.md` | Общие типы данных |
 | `front/STYLE.md` | Правила стиля кода, нейминг, git коммиты |
 | `front/plan.md` | Этапы разработки, паттерны Angular |
+
+## Правила для Claude Code
+
+- Не добавлять `Co-Authored-By` в коммиты
