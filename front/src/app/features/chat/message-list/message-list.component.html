@@ -1,0 +1,21 @@
+<!--
+  #scrollContainer — template reference variable.
+  Это метка, по которой @ViewChild('scrollContainer') находит элемент в коде.
+  В React аналог — ref={scrollRef}.
+-->
+<div class="message-list" #scrollContainer>
+  <!--
+    @for — итерация по массиву сообщений.
+    track message.id — уникальный ключ для оптимизации DOM (аналог key в React).
+
+    messages() — вызов Signal из ChatService.currentMessages.
+    Когда сообщения меняются, Angular автоматически перерисует список.
+  -->
+  @for (message of messages(); track message.id) {
+    <app-message-item [message]="message" />
+  } @empty {
+    <div class="empty-state">
+      <p>Нет сообщений. Начните диалог!</p>
+    </div>
+  }
+</div>

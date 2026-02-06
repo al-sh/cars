@@ -1,0 +1,62 @@
+.message {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+/*
+  Сообщения пользователя — прижаты к правому краю.
+  justify-content: flex-end сдвигает bubble вправо.
+*/
+.message.user {
+  justify-content: flex-end;
+}
+
+/*
+  Сообщения ассистента — прижаты к левому краю.
+  flex-start — значение по умолчанию, но указываем явно для читаемости.
+*/
+.message.assistant {
+  justify-content: flex-start;
+}
+
+.bubble {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  word-wrap: break-word;
+}
+
+/*
+  Стили пузырька для user: синий фон, белый текст,
+  скруглённый угол снизу-справа уменьшен — создаёт "хвостик" пузырька.
+*/
+.message.user .bubble {
+  background-color: var(--color-user-msg);
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+/*
+  Стили пузырька для assistant: серый фон, обычный текст,
+  скруглённый угол снизу-слева уменьшен.
+*/
+.message.assistant .bubble {
+  background-color: var(--color-assistant-msg);
+  color: var(--color-text);
+  border-bottom-left-radius: 4px;
+}
+
+.content {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.time {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  text-align: right;
+}

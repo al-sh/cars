@@ -2,11 +2,12 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
 import { ChatService } from '../../../core/services/chat.service';
 import { ChatHeaderComponent } from '../chat-header/chat-header.component';
+import { MessageListComponent } from '../message-list/message-list.component';
 
 @Component({
   selector: 'app-chat-window',
   standalone: true,
-  imports: [ChatHeaderComponent],
+  imports: [ChatHeaderComponent, MessageListComponent],
   templateUrl: './chat-window.component.html',
   styleUrl: './chat-window.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -16,9 +17,5 @@ export class ChatWindowComponent {
 
   get currentChat() {
     return this.chatService.currentChat;
-  }
-
-  get currentMessages() {
-    return this.chatService.currentMessages;
   }
 }
