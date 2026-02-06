@@ -1,0 +1,142 @@
+/* 
+  Основной контейнер списка чатов.
+  display: flex и flex-direction: column создают вертикальную компоновку.
+  height: 100% - занимает всю доступную высоту родителя.
+*/
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 1rem;
+}
+
+/* 
+  Кнопка создания нового чата.
+  width: 100% - занимает всю ширину контейнера.
+  padding - внутренние отступы для комфортного клика.
+  background-color: var(--color-primary) - используем CSS переменную из styles.css.
+  border: none - убираем стандартную рамку браузера.
+  border-radius - скругление углов для современного вида.
+  color: white - белый текст на синем фоне.
+  font-weight: 500 - немного жирнее обычного текста.
+  cursor: pointer - показывает, что элемент кликабельный.
+  transition - плавная анимация при изменении свойств.
+*/
+.new-chat-button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* 
+  :hover - состояние при наведении мыши.
+  transform: scale(1.02) - слегка увеличиваем кнопку для визуального feedback.
+  Можно также использовать opacity или box-shadow для другого эффекта.
+*/
+.new-chat-button:hover {
+  background-color: #2563eb; /* Немного темнее основного цвета */
+  transform: scale(1.02);
+}
+
+/* 
+  :active - состояние при нажатии (пока кнопка зажата).
+  transform: scale(0.98) - слегка уменьшаем для эффекта "нажатия".
+*/
+.new-chat-button:active {
+  transform: scale(0.98);
+}
+
+/* 
+  :disabled - состояние отключённой кнопки.
+  Пока мы не используем disabled, но это хорошая практика для будущего.
+*/
+.new-chat-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Контейнер для поля поиска */
+.search-container {
+  width: 100%;
+}
+
+/* 
+  Поле поиска.
+  width: 100% - занимает всю ширину.
+  padding - внутренние отступы для текста.
+  border - рамка вокруг поля.
+  border-radius - скругление углов.
+  font-size - размер шрифта.
+  
+  :focus - состояние когда поле в фокусе (пользователь кликнул или перешёл Tab).
+  outline: none - убираем стандартную браузерную обводку.
+  border-color - меняем цвет рамки на primary для визуального feedback.
+*/
+.search-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background-color: white;
+  color: var(--color-text);
+  transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* 
+  :disabled - состояние отключённого поля.
+  background-color - серый фон показывает, что поле неактивно.
+  cursor: not-allowed - курсор показывает, что поле недоступно.
+*/
+.search-input:disabled {
+  background-color: #f1f5f9;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* 
+  Контейнер для списка чатов.
+  flex: 1 - занимает всё оставшееся пространство (растягивается).
+  overflow-y: auto - если чатов много, появляется вертикальная прокрутка.
+  min-height: 0 - важно для правильной работы flex с overflow.
+*/
+.chats-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 0.25rem; /* Небольшой отступ справа для скроллбара */
+}
+
+/* 
+  Стилизация скроллбара для WebKit браузеров (Chrome, Safari, Edge).
+  Это опционально, но улучшает внешний вид.
+*/
+.chats-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chats-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chats-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.chats-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

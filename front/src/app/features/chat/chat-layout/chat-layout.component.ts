@@ -3,11 +3,12 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
 import { HeaderComponent } from '../../../shared/components/header/header.component';
+import { ChatListComponent } from '../chat-list/chat-list.component';
 
 @Component({
   selector: 'app-chat-layout',
   standalone: true,
-  imports: [HeaderComponent],
+  imports: [HeaderComponent, ChatListComponent],
   templateUrl: './chat-layout.component.html',
   styleUrl: './chat-layout.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush

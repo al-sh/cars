@@ -2,12 +2,10 @@
   <app-header />
   
   <aside class="sidebar">
-    <!-- ChatList будет здесь -->
-    <p>Sidebar placeholder</p>
+    <app-chat-list />
   </aside>
   
   <main class="content">
-    <!-- ChatWindow будет здесь -->
     @if (chatId()) {
       <p>Выбран чат с ID: <strong>{{ chatId() }}</strong></p>
     } @else {

@@ -1,0 +1,57 @@
+<div class="chat-list">
+  <!-- 
+    Кнопка для создания нового чата.
+    (click)="onCreateNewChat()" - при клике вызывается метод onCreateNewChat().
+    Пока это заглушка, но структура готова для будущей реализации.
+  -->
+  <button class="new-chat-button" (click)="onCreateNewChat()">
+    + Новый чат
+  </button>
+
+  <!-- 
+    Поле поиска чатов.
+    Пока это просто статичный input без функционала.
+    На этапе 12 мы добавим FormControl и логику фильтрации.
+    
+    placeholder - текст-подсказка, который виден когда поле пустое.
+    disabled - показываем, что функционал ещё не реализован (опционально).
+  -->
+  <div class="search-container">
+    <input 
+      type="text" 
+      class="search-input" 
+      placeholder="Поиск чатов..."
+      disabled
+    />
+  </div>
+
+  <!-- 
+    Список чатов.
+    
+    @for - это новый control flow синтаксис Angular 17+.
+    В старых версиях использовался *ngFor, но новый синтаксис более читаемый.
+    
+    Синтаксис: @for (item of items; track item.id) { ... }
+    
+    - chat of chats - перебираем массив chats
+    - track chat.id - ОЧЕНЬ ВАЖНО! Это говорит Angular, как идентифицировать
+      каждый элемент списка. Без track Angular пересоздаст все DOM-элементы
+      при любом изменении массива. С track - только изменённые элементы.
+      Это аналог key={chat.id} в React, но в Angular track ОБЯЗАТЕЛЕН.
+    
+    Внутри блока @for мы используем компонент app-chat-item:
+    - [chat]="chat" - передаём объект чата через @Input()
+    - (selected)="onChatSelected($event)" - подписываемся на событие selected.
+      Когда ChatItemComponent вызовет selected.emit(chatId), Angular автоматически
+      вызовет onChatSelected() с переданным значением.
+      $event - это специальная переменная, содержащая данные события.
+  -->
+  <div class="chats-container">
+    @for (chat of chats; track chat.id) {
+      <app-chat-item 
+        [chat]="chat" 
+        (selected)="onChatSelected($event)"
+      />
+    }
+  </div>
+</div>
