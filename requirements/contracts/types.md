@@ -4,6 +4,22 @@
 
 ---
 
+## Правила сериализации (JSON контракт)
+
+### Именование полей
+
+- В JSON используется **camelCase** (как в TypeScript примерах ниже).
+
+### Enum значения
+
+- В JSON enum значения передаются **строками в нижнем регистре** (lower-case), например:
+  - `User.role`: `"client" | "manager" | "admin"`
+  - `Message.role`: `"user" | "assistant" | "system"`
+- В Java enum значения остаются в UPPER_CASE (как принято в Java), но backend обязан
+  **сериализовать/десериализовать** их в lower-case для соответствия контракту.
+
+---
+
 ## User
 
 Пользователь системы.
@@ -260,8 +276,7 @@ public record CursorResponse<T>(
 ```typescript
 interface AuthResponse {
   user: User;
-  accessToken: string;
-  refreshToken: string;
+  token: string;
 }
 
 interface LoginRequest {

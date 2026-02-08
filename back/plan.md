@@ -112,16 +112,13 @@ back/
 │   │   │   │
 │   │   │   ├── user/                # Модуль пользователей
 │   │   │   │   ├── User.java              # Entity
-│   │   │   │   ├── RefreshToken.java      # Entity
 │   │   │   │   ├── UserRole.java          # Enum
 │   │   │   │   ├── UserRepository.java
-│   │   │   │   ├── RefreshTokenRepository.java
 │   │   │   │   ├── AuthService.java
 │   │   │   │   ├── AuthController.java
 │   │   │   │   └── dto/
 │   │   │   │       ├── RegisterRequest.java
 │   │   │   │       ├── LoginRequest.java
-│   │   │   │       ├── RefreshRequest.java
 │   │   │   │       ├── AuthResponse.java
 │   │   │   │       └── UserDto.java
 │   │   │   │
@@ -165,10 +162,8 @@ back/
 │   │       ├── application-dev.yml
 │   │       └── db/migration/        # Flyway миграции
 │   │           ├── V1__create_users_table.sql
-│   │           ├── V2__create_refresh_tokens_table.sql
-│   │           ├── V3__create_chats_table.sql
-│   │           ├── V4__create_messages_table.sql
-│   │           └── V5__add_triggers.sql
+│   │           ├── V2__create_chats_table.sql
+│   │           └── V3__create_messages_table.sql
 │   │
 │   └── test/java/com/carsai/back/
 │       ├── user/
@@ -274,7 +269,7 @@ Package-by-feature группирует связанный код вместе. 
 
 **Время:** ~45 мин
 
-**Цель:** Создать таблицы `users` и `refresh_tokens` в БД, описать JPA Entity.
+**Цель:** Создать таблицу `users` в БД, описать JPA Entity.
 
 **Задачи:**
 
@@ -292,12 +287,10 @@ Package-by-feature группирует связанный код вместе. 
        CONSTRAINT uk_users_email UNIQUE (email),
        CONSTRAINT chk_users_role CHECK (role IN ('CLIENT', 'MANAGER', 'ADMIN'))
    );
-   CREATE INDEX idx_users_email ON users(email) WHERE deleted = false;
+   CREATE INDEX idx_users_email ON users(email);
    ```
 
-2. Flyway миграция `V2__create_refresh_tokens_table.sql`
-
-3. Создать enum `UserRole`:
+2. Создать enum `UserRole`:
 
    ```java
    public enum UserRole {
@@ -305,7 +298,7 @@ Package-by-feature группирует связанный код вместе. 
    }
    ```
 
-4. Создать Entity `User`:
+3. Создать Entity `User`:
 
    ```java
    @Entity                           // Говорит JPA: этот класс — таблица в БД
@@ -325,9 +318,7 @@ Package-by-feature группирует связанный код вместе. 
    }
    ```
 
-5. Создать Entity `RefreshToken`
-
-6. Проверить: приложение стартует, таблицы созданы в PostgreSQL
+4. Проверить: приложение стартует, таблицы созданы в PostgreSQL
 
 **Изучаемые концепции:**
 
@@ -363,18 +354,7 @@ Package-by-feature группирует связанный код вместе. 
    }
    ```
 
-2. Создать `RefreshTokenRepository`:
-
-   ```java
-   @Repository
-   public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
-       Optional<RefreshToken> findByToken(String token);
-       void deleteByUserIdAndToken(UUID userId, String token);
-       void deleteAllByUserId(UUID userId);
-   }
-   ```
-
-3. Проверить: приложение стартует без ошибок
+2. Проверить: приложение стартует без ошибок
 
 **Изучаемые концепции:**
 
@@ -422,15 +402,14 @@ Package-by-feature группирует связанный код вместе. 
    ) {}
    ```
 
-2. Создать `LoginRequest`, `RefreshRequest`
+2. Создать `LoginRequest`
 
 3. Создать response DTO:
 
    ```java
    public record AuthResponse(
        UserDto user,
-       String accessToken,
-       String refreshToken
+       String token
    ) {}
 
    public record UserDto(
@@ -511,7 +490,6 @@ Package-by-feature группирует связанный код вместе. 
        // DI через конструктор — Spring автоматически передаст реализацию.
        // В Angular аналог: private chatService = inject(ChatService);
        private final UserRepository userRepository;
-       private final RefreshTokenRepository refreshTokenRepository;
        private final PasswordEncoder passwordEncoder;
        // JwtTokenService создадим на следующем этапе
        // private final JwtTokenService jwtTokenService;
@@ -535,7 +513,7 @@ Package-by-feature группирует связанный код вместе. 
 
            user = userRepository.save(user);
 
-           // 3. Сгенерировать токены (пока заглушка)
+           // 3. Сгенерировать JWT токен (пока заглушка)
            return generateAuthResponse(user);
        }
 
@@ -566,7 +544,7 @@ Package-by-feature группирует связанный код вместе. 
 **Изучаемые концепции:**
 
 - **Dependency Injection (DI):** Spring сам создаёт объекты и передаёт в конструктор. Ты пишешь `private final UserRepository userRepository` — Spring находит реализацию и подставляет. В Angular то же самое: `private chatService = inject(ChatService)`. В Express DI обычно нет — ты вручную импортируешь модули (`const userRepo = require('./userRepo')`). Spring DI делает код более тестируемым: в тестах легко подменить реальный репозиторий на мок.
-- **@Transactional:** Оборачивает метод в транзакцию БД. Если внутри метода бросилось исключение — все изменения откатятся. Пример: register сохраняет User и RefreshToken. Если сохранение токена упадёт — User тоже не сохранится. В Express пришлось бы вручную: `const trx = await knex.transaction()` → `trx.commit()` / `trx.rollback()`. Spring делает это автоматически через аннотацию.
+- **@Transactional:** Оборачивает метод в транзакцию БД. Если внутри метода бросилось исключение — все изменения откатятся. В Express пришлось бы вручную: `const trx = await knex.transaction()` → `trx.commit()` / `trx.rollback()`. Spring делает это автоматически через аннотацию.
 - **BCrypt:** Алгоритм хеширования паролей. `encode("password123")` → `"$2a$10$Nq3..."` (60 символов). Необратимый — нельзя восстановить пароль из хеша. `matches("password123", hash)` → `true`. Каждый раз другой хеш — даже для одного пароля (соль). В Node.js аналог — пакет `bcrypt`: `bcrypt.hash(password, 10)` и `bcrypt.compare(password, hash)`.
 - **Builder паттерн:** `User.builder().email("a@b.com").name("Иван").build()` — создаём объект пошагово. Читабельнее, чем `new User(null, "a@b.com", "Иван", null, "CLIENT", ...)`. В JS просто передали бы объект `{ email: "a@b.com", name: "Иван" }`. Lombok генерирует Builder из `@Builder`.
 
@@ -591,25 +569,26 @@ Package-by-feature группирует связанный код вместе. 
        @Value("${jwt.secret}")  // Читаем значение из application.yml
        private String secret;
 
-       @Value("${jwt.access-token-expiration}")
-       private Duration accessTokenExpiration;  // 15 минут
+       @Value("${jwt.token-expiration}")
+       private Duration tokenExpiration;  // например, 7 дней
 
-       // Генерация access token — короткоживущий токен для доступа к API.
+       // Генерация JWT токена для доступа к API.
        // Клиент отправляет его в заголовке Authorization: Bearer <token>
-       public String generateAccessToken(User user) {
+       public String generateToken(User user) {
            return Jwts.builder()
                .subject(user.getId().toString())          // Кто владелец токена
                .claim("email", user.getEmail())            // Доп. данные
-               .claim("role", user.getRole().name())       // Роль для авторизации
+               // В JSON контракте роли/enum — строки lower-case, поэтому кладём в claim lower-case.
+               .claim("role", user.getRole().name().toLowerCase()) // Роль для авторизации
                .issuedAt(new Date())                       // Когда создан
-               .expiration(Date.from(Instant.now().plus(accessTokenExpiration)))  // Когда истечёт
+               .expiration(Date.from(Instant.now().plus(tokenExpiration)))  // Когда истечёт
                .signWith(getSigningKey())                  // Подпись ключом
                .compact();                                 // Собрать в строку
        }
 
        // Валидация — проверяет подпись и срок действия.
        // Если токен подделан или истёк — бросает JwtException.
-       public UserPrincipal validateAccessToken(String token) {
+       public UserPrincipal validateToken(String token) {
            Claims claims = Jwts.parser()
                .verifyWith(getSigningKey())
                .build()
@@ -626,9 +605,10 @@ Package-by-feature группирует связанный код вместе. 
 
    ```yaml
    jwt:
-     secret: ${JWT_SECRET:my-256-bit-secret-key-for-development-only!!}
-     access-token-expiration: 15m
-     refresh-token-expiration: 7d
+     # Важно: значение должно приходить из env. Не хардкодим «осмысленный» дефолт,
+     # чтобы случайно не утащить его в прод.
+     secret: ${JWT_SECRET}
+     token-expiration: 7d
    ```
 
 5. Интегрировать `JwtTokenService` в `AuthService.generateAuthResponse()`
@@ -636,7 +616,7 @@ Package-by-feature группирует связанный код вместе. 
 **Изучаемые концепции:**
 
 - **JWT (JSON Web Token):** Токен из трёх частей: `header.payload.signature`. Header — алгоритм подписи. Payload — данные (userId, role, expiration). Signature — подпись секретным ключом. Сервер подписывает токен при логине. При каждом запросе клиент отправляет токен — сервер проверяет подпись и извлекает данные. Не нужно хранить сессию на сервере. В Node.js используется пакет `jsonwebtoken`: `jwt.sign(payload, secret)` и `jwt.verify(token, secret)`. В Java — библиотека JJWT с builder-паттерном.
-- **Access Token vs Refresh Token:** Access token живёт 15 минут — если украдут, ущерб минимальный. Refresh token живёт 7 дней, хранится в БД — позволяет получить новый access token без повторного ввода пароля. При refresh старый refresh token удаляется (rotation) — защита от кражи.
+- **Один токен:** Для MVP используем один JWT токен. Это проще в реализации, но с компромиссом по безопасности (при компрометации токен живёт до истечения срока). Если понадобится — позже можно вернуться к access/refresh.
 - **@Value:** Инъекция значения из конфигурации. `@Value("${jwt.secret}")` — Spring подставит значение из application.yml. `${JWT_SECRET:default}` — сначала ищет переменную окружения, если нет — берёт default. Аналогия: `environment.ts` в Angular или `process.env.JWT_SECRET || 'default'` в Express.
 - **HMAC подпись:** `signWith(key)` подписывает токен секретным ключом. Если кто-то изменит payload — подпись не совпадёт, и валидация упадёт. Как цифровая печать на документе.
 
@@ -678,7 +658,7 @@ Package-by-feature группирует связанный код вместе. 
                String token = authHeader.substring(7);
                try {
                    // 2. Валидировать и извлечь данные пользователя
-                   UserPrincipal principal = jwtTokenService.validateAccessToken(token);
+                   UserPrincipal principal = jwtTokenService.validateToken(token);
 
                    // 3. Установить аутентификацию в контекст запроса
                    // После этого Spring знает: "этот запрос от пользователя X с ролью Y"
@@ -781,18 +761,6 @@ Package-by-feature группирует связанный код вместе. 
        public AuthResponse login(@Valid @RequestBody LoginRequest request) {
            return authService.login(request);
        }
-
-       @PostMapping("/refresh")
-       public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
-           return authService.refresh(request.refreshToken());
-       }
-
-       @PostMapping("/logout")
-       @ResponseStatus(HttpStatus.NO_CONTENT)  // 204 — успех, но тело пустое
-       public void logout(@AuthenticationPrincipal UserPrincipal user,
-                          @RequestBody RefreshRequest request) {
-           authService.logout(user.getId(), request.refreshToken());
-       }
    }
    ```
 
@@ -880,9 +848,7 @@ Package-by-feature группирует связанный код вместе. 
 
 2. Flyway миграция `V4__create_messages_table.sql`
 
-3. Flyway миграция `V5__add_triggers.sql` (обновление updated_at)
-
-4. Создать enum `MessageRole`
+3. Создать enum `MessageRole`
 
 5. Создать Entity `Chat`:
 
@@ -920,6 +886,11 @@ Package-by-feature группирует связанный код вместе. 
        @PrePersist
        protected void onCreate() {
            createdAt = Instant.now();
+           updatedAt = Instant.now();
+       }
+
+       @PreUpdate
+       protected void onUpdate() {
            updatedAt = Instant.now();
        }
    }
@@ -1087,12 +1058,15 @@ Package-by-feature группирует связанный код вместе. 
 
            List<Message> messages;
            if (before != null) {
-               // Загрузить сообщения ДО указанного (для подгрузки истории)
+               // Cursor = ID сообщения. Сначала находим опорное сообщение, чтобы получить createdAt.
+               Message anchor = messageRepository.findById(before)
+                   .orElseThrow(() -> new MessageNotFoundException(before));
+               // Загрузить сообщения ДО anchor.createdAt (для подгрузки истории)
                messages = messageRepository.findByChatIdAndCreatedAtBefore(
-                   chatId, before, limit + 1);
+                   chatId, anchor.getCreatedAt(), PageRequest.of(0, limit + 1));
            } else {
                // Последние N сообщений
-               messages = messageRepository.findLatestByChatId(chatId, limit + 1);
+               messages = messageRepository.findByChatId(chatId, PageRequest.of(0, limit + 1));
            }
 
            boolean hasMore = messages.size() > limit;
@@ -1119,14 +1093,13 @@ Package-by-feature группирует связанный код вместе. 
    ```java
    @Repository
    public interface MessageRepository extends JpaRepository<Message, UUID> {
-       @Query("SELECT m FROM Message m WHERE m.chat.id = :chatId " +
-              "ORDER BY m.createdAt DESC LIMIT :limit")
-       List<Message> findLatestByChatId(@Param("chatId") UUID chatId,
-                                        @Param("limit") int limit);
+       List<Message> findByChatId(UUID chatId, Pageable pageable);
+
+       List<Message> findByChatIdAndCreatedAtBefore(UUID chatId, Instant before, Pageable pageable);
    }
    ```
 
-4. Добавить простой rate limiting (in-memory, ConcurrentHashMap)
+4. Добавить rate limiting **10 сообщений/мин на пользователя** (in-memory, ConcurrentHashMap)
 
 **Изучаемые концепции:**
 

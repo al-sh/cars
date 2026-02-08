@@ -1,0 +1,660 @@
+openapi: 3.0.3
+info:
+  title: CarsAI API
+  version: 0.1.0
+  description: |
+    REST API контракт для CarsAI.
+
+    - Base URL: `/api/v1`
+    - Auth: `Authorization: Bearer {token}`
+    - JSON: camelCase
+    - Enum в JSON: lower-case строки
+servers:
+  - url: /api/v1
+
+tags:
+  - name: Auth
+  - name: Chats
+  - name: Messages
+  - name: Users
+  - name: Cars
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register user
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /chats:
+    get:
+      tags: [Chats]
+      summary: List chats of current user
+      operationId: getChats
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - in: query
+          name: search
+          schema: { type: string, nullable: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedChatResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Chats]
+      summary: Create chat
+      operationId: createChat
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChatRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /chats/{chatId}:
+    parameters:
+      - in: path
+        name: chatId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Chats]
+      summary: Get chat by id
+      operationId: getChat
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Chats]
+      summary: Update chat
+      operationId: updateChat
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateChatRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Chats]
+      summary: Delete chat (soft delete)
+      operationId: deleteChat
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: No content
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /chats/{chatId}/messages:
+    parameters:
+      - in: path
+        name: chatId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Messages]
+      summary: List messages (cursor pagination)
+      operationId: getMessages
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - in: query
+          name: before
+          description: Cursor — ID сообщения, перед которым нужно загрузить историю
+          schema: { type: string, format: uuid, nullable: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorMessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Messages]
+      summary: Send user message
+      operationId: sendMessage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /chats/{chatId}/stream:
+    get:
+      tags: [Messages]
+      summary: Stream assistant response (SSE)
+      operationId: streamResponse
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema: { type: string, format: uuid }
+        - in: query
+          name: messageId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users:
+    get:
+      tags: [Users]
+      summary: List users (manager only)
+      operationId: getUsers
+      description: Требует роль `manager`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - in: query
+          name: search
+          schema: { type: string, nullable: true }
+        - in: query
+          name: role
+          schema:
+            $ref: '#/components/schemas/UserRole'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedUserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /users/{userId}:
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Users]
+      summary: Get user (manager only)
+      operationId: getUser
+      description: Требует роль `manager`.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{userId}/chats:
+    parameters:
+      - in: path
+        name: userId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Users]
+      summary: List chats of specific user (manager only)
+      operationId: getUserChats
+      description: Требует роль `manager`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedChatResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /cars:
+    get:
+      tags: [Cars]
+      summary: Search cars
+      operationId: searchCars
+      parameters:
+        - in: query
+          name: priceMin
+          schema: { type: integer, minimum: 0, nullable: true }
+        - in: query
+          name: priceMax
+          schema: { type: integer, minimum: 0 }
+        - in: query
+          name: bodyType
+          schema: { $ref: '#/components/schemas/BodyType' }
+        - in: query
+          name: engineType
+          schema: { $ref: '#/components/schemas/EngineType' }
+        - in: query
+          name: brand
+          schema: { type: string, nullable: true }
+        - in: query
+          name: seats
+          schema: { type: integer, nullable: true }
+        - in: query
+          name: transmission
+          schema: { $ref: '#/components/schemas/Transmission' }
+        - in: query
+          name: drive
+          schema: { $ref: '#/components/schemas/DriveType' }
+        - in: query
+          name: yearMin
+          schema: { type: integer, nullable: true }
+        - in: query
+          name: yearMax
+          schema: { type: integer, nullable: true }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: perPage
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedCarResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /cars/{carId}:
+    parameters:
+      - in: path
+        name: carId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Cars]
+      summary: Get car by id
+      operationId: getCar
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Car'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    TooManyRequests:
+      description: Too Many Requests
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+
+    AuthResponse:
+      type: object
+      required: [user, token]
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        token: { type: string, description: JWT token }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+        name: { type: string, minLength: 2, maxLength: 100 }
+
+    UserRole:
+      type: string
+      enum: [client, manager, admin]
+
+    User:
+      type: object
+      required: [id, email, name, role, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        role: { $ref: '#/components/schemas/UserRole' }
+        createdAt: { type: string, format: date-time }
+
+    Chat:
+      type: object
+      required: [id, userId, title, createdAt, updatedAt, messageCount]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        title: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        messageCount: { type: integer, minimum: 0 }
+
+    CreateChatRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+          maxLength: 255
+
+    UpdateChatRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          nullable: true
+          maxLength: 255
+
+    MessageRole:
+      type: string
+      enum: [user, assistant, system]
+
+    Message:
+      type: object
+      required: [id, chatId, role, content, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        chatId: { type: string, format: uuid }
+        role: { $ref: '#/components/schemas/MessageRole' }
+        content: { type: string, maxLength: 4000 }
+        createdAt: { type: string, format: date-time }
+
+    SendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 4000 }
+
+    SendMessageResponse:
+      type: object
+      required: [userMessage, streamUrl]
+      properties:
+        userMessage: { $ref: '#/components/schemas/Message' }
+        streamUrl:
+          type: string
+          description: Absolute path to SSE endpoint
+          example: /api/v1/chats/00000000-0000-0000-0000-000000000000/stream?messageId=00000000-0000-0000-0000-000000000000
+
+    CursorMessageResponse:
+      type: object
+      required: [items, hasMore]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+        hasMore: { type: boolean }
+
+    PagedChatResponse:
+      type: object
+      required: [items, total, page, perPage]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Chat' }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        perPage: { type: integer, minimum: 1 }
+
+    PagedUserResponse:
+      type: object
+      required: [items, total, page, perPage]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/User' }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        perPage: { type: integer, minimum: 1 }
+
+    BodyType:
+      type: string
+      enum: [sedan, suv, hatchback, wagon, minivan, coupe, pickup]
+    EngineType:
+      type: string
+      enum: [petrol, diesel, hybrid, electric]
+    Transmission:
+      type: string
+      enum: [manual, automatic, robot, cvt]
+    DriveType:
+      type: string
+      enum: [fwd, rwd, awd]
+
+    Car:
+      type: object
+      required:
+        - id
+        - brand
+        - model
+        - year
+        - price
+        - bodyType
+        - engineType
+        - engineVolume
+        - powerHp
+        - transmission
+        - drive
+        - seats
+        - fuelConsumption
+        - description
+        - imageUrl
+      properties:
+        id: { type: string, format: uuid }
+        brand: { type: string }
+        model: { type: string }
+        year: { type: integer }
+        price: { type: integer }
+        bodyType: { $ref: '#/components/schemas/BodyType' }
+        engineType: { $ref: '#/components/schemas/EngineType' }
+        engineVolume: { type: number, nullable: true }
+        powerHp: { type: integer }
+        transmission: { $ref: '#/components/schemas/Transmission' }
+        drive: { $ref: '#/components/schemas/DriveType' }
+        seats: { type: integer }
+        fuelConsumption: { type: number, nullable: true }
+        description: { type: string, nullable: true }
+        imageUrl: { type: string, nullable: true }
+
+    PagedCarResponse:
+      type: object
+      required: [items, total, page, perPage]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Car' }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        perPage: { type: integer, minimum: 1 }

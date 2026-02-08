@@ -45,9 +45,12 @@
 
 **Поведение:**
 - Submit → POST /auth/login
-- Success → сохранить токены, редирект по роли
+- Success → сохранить токен, редирект по роли
 - 401 → "Неверный email или пароль"
 - Toggle видимости пароля (иконка глаза)
+
+**Примечание (MVP):**
+- Восстановление пароля (password reset) **не входит в MVP** (см. `requirements/CONTEXT.md`).
 
 ---
 
@@ -102,9 +105,12 @@
 
 **Поведение:**
 - Submit → POST /auth/register
-- Success → сохранить токены, редирект на /chat
+- Success → сохранить токен, редирект на /chat
 - 409 → "Email уже зарегистрирован"
 - Валидация в реальном времени
+
+**Примечание (MVP):**
+- Восстановление пароля (password reset) **не входит в MVP** (см. `requirements/CONTEXT.md`).
 
 ---
 
@@ -113,30 +119,21 @@
 ### Хранение токенов
 
 ```typescript
-// localStorage для refresh_token (persistent)
-// memory/sessionStorage для access_token (безопаснее)
+// Для MVP: храним один JWT token (самый простой вариант).
+// Можно начать с localStorage (удобно), позже — перейти на более безопасные схемы.
 
 interface AuthState {
   user: User | null;
-  accessToken: string | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
 ```
 
-### Refresh token flow
-
-```
-1. access_token истёк (401 от API)
-2. Перехватчик → POST /auth/refresh
-3. Success → обновить токены, повторить запрос
-4. Fail → logout, редирект на /login
-```
-
 ### Logout
 
 - Клик на имя пользователя → dropdown menu
-- "Выйти" → POST /auth/logout → очистить токены → /login
+- "Выйти" → очистить токен на клиенте → /login
 
 ---
 
@@ -254,6 +251,6 @@ function getDefaultRoute(role: UserRole): string {
 
 - Не логировать пароли
 - HTTPS only в production
-- HttpOnly cookies для refresh_token (опционально, альтернатива localStorage)
+- HttpOnly cookies (опционально, если перейдём на cookie-based auth)
 - CSRF protection при использовании cookies
 - Rate limiting на backend для /auth/*

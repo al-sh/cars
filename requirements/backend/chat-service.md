@@ -169,7 +169,7 @@ public class MessageController {
         @AuthenticationPrincipal UserPrincipal user,
         @PathVariable UUID chatId,
         @RequestParam(defaultValue = "50") int limit,
-        @RequestParam(required = false) UUID before
+        @RequestParam(required = false) UUID before // cursor: ID сообщения, перед которым грузим историю
     ) { ... }
     
     @PostMapping

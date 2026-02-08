@@ -33,7 +33,7 @@
                   │
 ┌─────────────────▼───────────────────────────────────────┐
 │                     Repository                           │
-│  UserRepository          RefreshTokenRepository          │
+│  UserRepository                                        │
 └─────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -63,20 +63,6 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
-    }
-    
-    @PostMapping("/refresh")
-    public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
-        return authService.refresh(request.refreshToken());
-    }
-    
-    @PostMapping("/logout")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(
-        @AuthenticationPrincipal UserPrincipal user,
-        @RequestBody RefreshRequest request
-    ) {
-        authService.logout(user.getId(), request.refreshToken());
     }
 }
 ```
@@ -144,7 +130,6 @@ public class UserController {
 public class AuthService {
     
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
     
@@ -165,7 +150,7 @@ public class AuthService {
         
         user = userRepository.save(user);
         
-        // 3. Сгенерировать токены
+        // 3. Сгенерировать JWT токен
         return generateAuthResponse(user);
     }
     
@@ -179,41 +164,14 @@ public class AuthService {
             throw new InvalidCredentialsException();
         }
         
-        // 3. Сгенерировать токены
+        // 3. Сгенерировать JWT токен
         return generateAuthResponse(user);
-    }
-    
-    public AuthResponse refresh(String refreshToken) {
-        // 1. Найти и валидировать refresh token
-        RefreshToken token = refreshTokenRepository.findByToken(refreshToken)
-            .orElseThrow(InvalidTokenException::new);
-        
-        if (token.isExpired()) {
-            refreshTokenRepository.delete(token);
-            throw new InvalidTokenException();
-        }
-        
-        // 2. Удалить старый refresh token (rotation)
-        refreshTokenRepository.delete(token);
-        
-        // 3. Сгенерировать новые токены
-        User user = token.getUser();
-        return generateAuthResponse(user);
-    }
-    
-    public void logout(UUID userId, String refreshToken) {
-        refreshTokenRepository.deleteByUserIdAndToken(userId, refreshToken);
     }
     
     private AuthResponse generateAuthResponse(User user) {
-        String accessToken = jwtTokenService.generateAccessToken(user);
-        RefreshToken refreshToken = jwtTokenService.generateRefreshToken(user);
-        refreshTokenRepository.save(refreshToken);
-        
         return new AuthResponse(
             UserDto.from(user),
-            accessToken,
-            refreshToken.getToken()
+            jwtTokenService.generateToken(user)
         );
     }
 }
@@ -228,32 +186,22 @@ public class JwtTokenService {
     @Value("${jwt.secret}")
     private String secret;
     
-    @Value("${jwt.access-token-expiration}")
-    private Duration accessTokenExpiration; // 15 минут
+    @Value("${jwt.token-expiration}")
+    private Duration tokenExpiration; // например, 7 дней
     
-    @Value("${jwt.refresh-token-expiration}")
-    private Duration refreshTokenExpiration; // 7 дней
-    
-    public String generateAccessToken(User user) {
+    public String generateToken(User user) {
         return Jwts.builder()
             .setSubject(user.getId().toString())
             .claim("email", user.getEmail())
-            .claim("role", user.getRole().name())
+            // В JSON контракте роли передаются lower-case, поэтому кладём lower-case.
+            .claim("role", user.getRole().name().toLowerCase())
             .setIssuedAt(new Date())
-            .setExpiration(Date.from(Instant.now().plus(accessTokenExpiration)))
+            .setExpiration(Date.from(Instant.now().plus(tokenExpiration)))
             .signWith(getSigningKey(), SignatureAlgorithm.HS256)
             .compact();
     }
-    
-    public RefreshToken generateRefreshToken(User user) {
-        return RefreshToken.builder()
-            .user(user)
-            .token(UUID.randomUUID().toString())
-            .expiresAt(Instant.now().plus(refreshTokenExpiration))
-            .build();
-    }
-    
-    public UserPrincipal validateAccessToken(String token) {
+        
+    public UserPrincipal validateToken(String token) {
         Claims claims = Jwts.parserBuilder()
             .setSigningKey(getSigningKey())
             .build()
@@ -263,7 +211,8 @@ public class JwtTokenService {
         return new UserPrincipal(
             UUID.fromString(claims.getSubject()),
             claims.get("email", String.class),
-            UserRole.valueOf(claims.get("role", String.class))
+            // Claim role приходит lower-case, а Java enum — UPPER_CASE
+            UserRole.valueOf(claims.get("role", String.class).toUpperCase())
         );
     }
     
@@ -395,7 +344,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             try {
-                UserPrincipal principal = jwtTokenService.validateAccessToken(token);
+                UserPrincipal principal = jwtTokenService.validateToken(token);
                 
                 var authentication = new UsernamePasswordAuthenticationToken(
                     principal, null, principal.getAuthorities()
@@ -450,9 +399,8 @@ public record UpdateUserRequest(
 # application.yml
 
 jwt:
-  secret: ${JWT_SECRET:your-256-bit-secret-key-here-min-32-chars}
-  access-token-expiration: 15m
-  refresh-token-expiration: 7d
+  secret: ${JWT_SECRET}
+  token-expiration: 7d
 
 spring:
   security:
@@ -510,8 +458,7 @@ public class AuthExceptionHandler {
 ### JWT
 - HS256 алгоритм
 - Secret минимум 256 бит
-- Short-lived access tokens (15 мин)
-- Refresh token rotation
+- Один JWT токен для MVP (без refresh)
 
 ### Защита от атак
 - Rate limiting на /auth/* endpoints

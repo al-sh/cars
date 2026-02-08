@@ -10,17 +10,16 @@ PostgreSQL 16, схема для всех сервисов.
 
 ```
 ┌──────────────────┐       ┌──────────────────┐
-│      users       │       │  refresh_tokens  │
-├──────────────────┤       ├──────────────────┤
-│ id (PK)          │───┐   │ id (PK)          │
-│ email (UNIQUE)   │   │   │ user_id (FK)     │───┐
-│ name             │   │   │ token            │   │
-│ password_hash    │   │   │ expires_at       │   │
-│ role             │   │   │ created_at       │   │
-│ created_at       │   │   └──────────────────┘   │
-│ deleted          │   │                          │
-└──────────────────┘   │                          │
-         │             └──────────────────────────┘
+│      users       │
+├──────────────────┤
+│ id (PK)          │
+│ email (UNIQUE)   │
+│ name             │
+│ password_hash    │
+│ role             │
+│ created_at       │
+│ deleted          │
+└──────────────────┘
          │ 1:N
          ▼
 ┌──────────────────┐
@@ -87,27 +86,8 @@ CREATE TABLE users (
     CONSTRAINT chk_users_role CHECK (role IN ('CLIENT', 'MANAGER', 'ADMIN'))
 );
 
-CREATE INDEX idx_users_email ON users(email) WHERE deleted = false;
-CREATE INDEX idx_users_role ON users(role) WHERE deleted = false;
-```
-
-### Таблица refresh_tokens
-
-```sql
-CREATE TABLE refresh_tokens (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
-    token VARCHAR(255) NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    
-    CONSTRAINT fk_refresh_tokens_user 
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT uk_refresh_tokens_token UNIQUE (token)
-);
-
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
 ```
 
 ### Таблица chats
@@ -200,44 +180,6 @@ CREATE INDEX idx_cars_search ON cars(body_type, price, year);
 
 ---
 
-## Триггеры
-
-### Обновление updated_at для chats
-
-```sql
-CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = now();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_chats_updated_at
-    BEFORE UPDATE ON chats
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at();
-```
-
-### Обновление updated_at чата при новом сообщении
-
-```sql
-CREATE OR REPLACE FUNCTION update_chat_on_message()
-RETURNS TRIGGER AS $$
-BEGIN
-    UPDATE chats SET updated_at = now() WHERE id = NEW.chat_id;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_messages_update_chat
-    AFTER INSERT ON messages
-    FOR EACH ROW
-    EXECUTE FUNCTION update_chat_on_message();
-```
-
----
-
 ## Миграции (Flyway)
 
 Структура директории:
@@ -245,11 +187,9 @@ CREATE TRIGGER trg_messages_update_chat
 ```
 src/main/resources/db/migration/
 ├── V1__create_users_table.sql
-├── V2__create_refresh_tokens_table.sql
-├── V3__create_chats_table.sql
-├── V4__create_messages_table.sql
+├── V2__create_chats_table.sql
+├── V3__create_messages_table.sql
 ├── V5__create_cars_table.sql
-├── V6__add_triggers.sql
 └── V7__seed_cars_data.sql
 ```
 
