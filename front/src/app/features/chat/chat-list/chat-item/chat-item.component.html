@@ -13,8 +13,13 @@
       Если chat.title равен null или undefined, покажем 'Новый чат'.
       В Angular шаблонах можно использовать все возможности TypeScript/JavaScript.
     -->
-    <h3 class="chat-title">{{ chat.title ?? 'Новый чат' }}</h3>
-    
+    <h3 class="chat-title">
+      @if (isFavChat) {
+        🔖
+      }
+      {{ chat.title ?? "Новый чат" }}
+    </h3>
+
     <!-- 
       DatePipe - это встроенный Angular pipe для форматирования дат.
       Синтаксис: value | pipe:arguments
@@ -38,6 +43,8 @@
       chat.updated_at - это ISO строка даты из нашей модели.
       DatePipe автоматически преобразует её в читаемый формат согласно указанному паттерну.
     -->
-    <span class="chat-date">{{ chat.updated_at | date:'dd.MM.yyyy HH:mm' }}</span>
+    <span class="chat-date">{{
+      chat.updated_at | date: "dd.MM.yyyy HH:mm"
+    }}</span>
   </div>
 </div>

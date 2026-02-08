@@ -1,7 +1,18 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  EventEmitter,
+  inject,
+  Input,
+  Output,
+} from '@angular/core';
 
 import { Chat } from '../../../../core/models/chat.model';
+import {
+  ChatService,
+  SAVED_CHAT_ID,
+} from '../../../../core/services/chat.service';
 
 /**
  * ChatItemComponent — элемент списка чатов.
@@ -22,6 +33,8 @@ import { Chat } from '../../../../core/models/chat.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatItemComponent {
+  private readonly chatService = inject(ChatService);
+
   /**
    * Данные чата. required: true означает, что родитель обязан передать это свойство.
    * Восклицательный знак (!) говорит TypeScript: "я знаю, что значение будет".
@@ -50,5 +63,9 @@ export class ChatItemComponent {
    */
   onSelect(): void {
     this.selected.emit(this.chat.id);
+  }
+
+  get isFavChat() {
+    return this.chat.id === SAVED_CHAT_ID;
   }
 }

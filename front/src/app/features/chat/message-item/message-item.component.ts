@@ -1,7 +1,16 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+} from '@angular/core';
 
 import { Message } from '../../../core/models/message.model';
+import {
+  ChatService,
+  SAVED_CHAT_ID,
+} from '../../../core/services/chat.service';
 
 /**
  * MessageItemComponent — отображает одно сообщение в чате.
@@ -32,6 +41,8 @@ import { Message } from '../../../core/models/message.model';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MessageItemComponent {
+  private readonly chatService = inject(ChatService);
+
   /**
    * input.required() — входные данные, которые обязательны.
    * Если родитель не передаст message — Angular выбросит ошибку при компиляции.
@@ -40,4 +51,12 @@ export class MessageItemComponent {
    * В шаблоне: message().content, message().role и т.д.
    */
   readonly message = input.required<Message>();
+
+  get isFav() {
+    return this.chatService.currentChatId() === SAVED_CHAT_ID;
+  }
+
+  onFavClick() {
+    this.chatService.saveMessage(this.message());
+  }
 }

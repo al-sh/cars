@@ -9,11 +9,18 @@
     [class.user]="message().role === 'user'" — добавляет класс "user" если true
     [class.assistant]="message().role === 'assistant'" — добавляет класс "assistant"
 -->
-<div class="message"
-     [class.user]="message().role === 'user'"
-     [class.assistant]="message().role === 'assistant'">
+<div
+  class="message"
+  [class.user]="message().role === 'user'"
+  [class.assistant]="message().role === 'assistant'"
+>
   <div class="bubble">
-    <p class="content">{{ message().content }}</p>
+    <p class="content">
+      @if (message().forwardedFrom) {
+        Переслано из {{ message().forwardedFrom }}: <br />
+      }
+      {{ message().content }}
+    </p>
     <!--
       DatePipe — встроенный pipe Angular для форматирования дат.
       'HH:mm' — формат: часы:минуты (24-часовой).
@@ -21,6 +28,9 @@
       В React для этого нужна библиотека (date-fns, dayjs) или ручное форматирование.
       В Angular pipes встроены и используются через | в шаблоне.
     -->
-    <span class="time">{{ message().created_at | date:'HH:mm' }}</span>
+    <span class="time">{{ message().created_at | date: "HH:mm" }}</span>
+    @if (!isFav) {
+      <div class="fav" (click)="onFavClick()">🔖</div>
+    }
   </div>
 </div>

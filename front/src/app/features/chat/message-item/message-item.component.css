@@ -1,6 +1,25 @@
 .message {
+  position: relative;
   display: flex;
   margin-bottom: 12px;
+}
+
+.message:hover .bubble {
+  opacity: 0.9;
+}
+
+.fav {
+  display: none;
+  position: absolute;
+  bottom: 4px;
+  left: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.message:hover .fav {
+  display: block;
 }
 
 /*
@@ -20,6 +39,7 @@
 }
 
 .bubble {
+  position: relative;
   max-width: 70%;
   padding: 10px 14px;
   border-radius: 16px;

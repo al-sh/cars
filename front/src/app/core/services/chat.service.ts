@@ -1,21 +1,13 @@
 import { Injectable, computed, signal } from '@angular/core';
 
+import { MOCK_CHATS, MOCK_MESSAGES } from '../mocks/mock-data';
 import { Chat } from '../models/chat.model';
 import { Message } from '../models/message.model';
-import { MOCK_CHATS, MOCK_MESSAGES } from '../mocks/mock-data';
+
+export const SAVED_CHAT_ID = 'saved';
 
 /**
  * ChatService — центральный сервис для управления состоянием чатов и сообщений.
- *
- * В Angular сервисы с `providedIn: 'root'` — это синглтоны (единственный экземпляр
- * на всё приложение). Это похоже на React Context, но с важными отличиями:
- *
- * 1. Не нужно оборачивать компоненты в Provider
- * 2. Сервис инжектируется через DI, а не через хуки
- * 3. Состояние сохраняется между навигацией (если компоненты пересоздаются)
- *
- * Мы используем Signals для реактивного состояния — это новый подход в Angular 16+,
- * который постепенно заменяет RxJS BehaviorSubject для простых случаев.
  */
 @Injectable({ providedIn: 'root' })
 export class ChatService {
@@ -34,7 +26,17 @@ export class ChatService {
    * Почему приватный? Чтобы компоненты не могли напрямую менять состояние,
    * а использовали методы сервиса (инкапсуляция).
    */
-  private chatsSignal = signal<Chat[]>(MOCK_CHATS);
+  private chatsSignal = signal<Chat[]>([
+    {
+      id: SAVED_CHAT_ID,
+      title: 'Saved Messages',
+      user_id: 'mock-user',
+      message_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    ...MOCK_CHATS,
+  ]);
 
   /**
    * Храним сообщения в Map: chatId → массив сообщений.
@@ -43,7 +45,7 @@ export class ChatService {
    * Инициализируем из мок-данных, конвертируя Record в Map.
    */
   private messagesSignal = signal<Map<string, Message[]>>(
-    new Map(Object.entries(MOCK_MESSAGES))
+    new Map(Object.entries(MOCK_MESSAGES)),
   );
 
   /**
@@ -90,7 +92,7 @@ export class ChatService {
   readonly currentChat = computed(() => {
     const chatId = this.currentChatId();
     if (!chatId) return null;
-    return this.chats().find(chat => chat.id === chatId) ?? null;
+    return this.chats().find((chat) => chat.id === chatId) ?? null;
   });
 
   /**
@@ -165,7 +167,7 @@ export class ChatService {
     };
 
     // update() получает текущее значение и должен вернуть новое
-    this.messagesSignal.update(messagesMap => {
+    this.messagesSignal.update((messagesMap) => {
       // Создаём новый Map чтобы Angular увидел изменение
       const newMap = new Map(messagesMap);
       const chatMessages = newMap.get(chatId) ?? [];
@@ -175,15 +177,38 @@ export class ChatService {
     });
 
     // Обновляем счётчик сообщений в чате
-    this.chatsSignal.update(chats =>
-      chats.map(chat =>
+    this.chatsSignal.update((chats) =>
+      chats.map((chat) =>
         chat.id === chatId
-          ? { ...chat, message_count: chat.message_count + 1, updated_at: new Date().toISOString() }
-          : chat
-      )
+          ? {
+              ...chat,
+              message_count: chat.message_count + 1,
+              updated_at: new Date().toISOString(),
+            }
+          : chat,
+      ),
     );
 
     // TODO: Этап 17 — добавить имитацию ответа ассистента
+  }
+
+  saveMessage(message: Message): void {
+    const sourceChatTitle = this.chats().find(
+      (chat) => chat.id === message.chat_id,
+    )?.title;
+    this.messagesSignal.update((messagesMap) => {
+      const newMap = new Map(messagesMap);
+      const savedMessages = newMap.get(SAVED_CHAT_ID) ?? [];
+      const forwardedMessage: Message = {
+        ...message,
+        id: crypto.randomUUID(),
+        chat_id: SAVED_CHAT_ID,
+        forwardedFrom: sourceChatTitle ?? 'Unknown Chat',
+        created_at: new Date().toISOString(),
+      };
+      newMap.set(SAVED_CHAT_ID, [...savedMessages, forwardedMessage]);
+      return newMap;
+    });
   }
 
   /**
@@ -204,10 +229,10 @@ export class ChatService {
     };
 
     // Добавляем в начало списка (новые чаты сверху)
-    this.chatsSignal.update(chats => [newChat, ...chats]);
+    this.chatsSignal.update((chats) => [newChat, ...chats]);
 
     // Инициализируем пустой массив сообщений для нового чата
-    this.messagesSignal.update(messagesMap => {
+    this.messagesSignal.update((messagesMap) => {
       const newMap = new Map(messagesMap);
       newMap.set(newChat.id, []);
       return newMap;
@@ -226,12 +251,17 @@ export class ChatService {
    * @param updates - Объект с полями для обновления
    */
   updateChat(chatId: string, updates: Partial<Chat>): void {
-    this.chatsSignal.update(chats =>
-      chats.map(chat =>
+    if (chatId === SAVED_CHAT_ID) {
+      console.warn('Нельзя редактировать чат Saved Messages');
+      return;
+    }
+
+    this.chatsSignal.update((chats) =>
+      chats.map((chat) =>
         chat.id === chatId
           ? { ...chat, ...updates, updated_at: new Date().toISOString() }
-          : chat
-      )
+          : chat,
+      ),
     );
   }
 
@@ -241,11 +271,18 @@ export class ChatService {
    * @param chatId - ID чата для удаления
    */
   deleteChat(chatId: string): void {
+    if (chatId === SAVED_CHAT_ID) {
+      console.warn('Нельзя удалить чат Saved Messages');
+      return;
+    }
+
     // Удаляем чат из списка
-    this.chatsSignal.update(chats => chats.filter(chat => chat.id !== chatId));
+    this.chatsSignal.update((chats) =>
+      chats.filter((chat) => chat.id !== chatId),
+    );
 
     // Удаляем сообщения чата
-    this.messagesSignal.update(messagesMap => {
+    this.messagesSignal.update((messagesMap) => {
       const newMap = new Map(messagesMap);
       newMap.delete(chatId);
       return newMap;
