@@ -1,0 +1,94 @@
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="logo-icon">🚗</span>
+      <span class="logo-text">CarsAI</span>
+    </div>
+
+    <h1 class="auth-title">Регистрация</h1>
+
+    @if (error()) {
+      <div class="auth-error">{{ error() }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
+      <div class="form-field">
+        <label for="name">Имя</label>
+        <input
+          id="name"
+          type="text"
+          formControlName="name"
+          placeholder="Ваше имя"
+          autocomplete="name"
+        />
+        @if (form.controls.name.touched && form.controls.name.errors) {
+          <span class="field-error">Введите имя</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          placeholder="you@example.com"
+          autocomplete="email"
+        />
+        @if (form.controls.email.touched && form.controls.email.errors) {
+          <span class="field-error">
+            @if (form.controls.email.errors['required']) {
+              Введите email
+            } @else if (form.controls.email.errors['email']) {
+              Некорректный email
+            }
+          </span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="password">Пароль</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          placeholder="Минимум 6 символов"
+          autocomplete="new-password"
+        />
+        @if (form.controls.password.touched && form.controls.password.errors) {
+          <span class="field-error">
+            @if (form.controls.password.errors['required']) {
+              Введите пароль
+            } @else if (form.controls.password.errors['minlength']) {
+              Минимум 6 символов
+            }
+          </span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="confirmPassword">Подтвердите пароль</label>
+        <input
+          id="confirmPassword"
+          type="password"
+          formControlName="confirmPassword"
+          placeholder="Повторите пароль"
+          autocomplete="new-password"
+        />
+        @if (form.controls.confirmPassword.touched) {
+          @if (form.controls.confirmPassword.errors?.['required']) {
+            <span class="field-error">Подтвердите пароль</span>
+          } @else if (form.errors?.['passwordsMismatch']) {
+            <span class="field-error">Пароли не совпадают</span>
+          }
+        }
+      </div>
+
+      <button type="submit" class="auth-button">Зарегистрироваться</button>
+    </form>
+
+    <p class="auth-link">
+      Уже есть аккаунт? <a routerLink="/auth/login">Войти</a>
+    </p>
+  </div>
+</div>
