@@ -96,15 +96,12 @@
   border-color: var(--color-primary);
 }
 
-/* 
-  :disabled - состояние отключённого поля.
-  background-color - серый фон показывает, что поле неактивно.
-  cursor: not-allowed - курсор показывает, что поле недоступно.
+/*
+  Placeholder — стилизация текста-подсказки в пустом поле.
+  Уменьшаем контраст, чтобы placeholder не конкурировал с набранным текстом.
 */
-.search-input:disabled {
-  background-color: #f1f5f9;
-  cursor: not-allowed;
-  opacity: 0.6;
+.search-input::placeholder {
+  color: var(--color-text-secondary);
 }
 
 /* 
@@ -139,4 +136,17 @@
 
 .chats-container::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/*
+  Пустое состояние поиска.
+  Показывается когда ни один чат не соответствует запросу.
+  text-align: center — центрируем текст.
+  color: var(--color-text-secondary) — приглушённый цвет для вспомогательного текста.
+*/
+.empty-search {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
 }
