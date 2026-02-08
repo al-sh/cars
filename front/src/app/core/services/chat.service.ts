@@ -231,10 +231,25 @@ export class ChatService {
     // Добавляем в начало списка (новые чаты сверху)
     this.chatsSignal.update((chats) => [newChat, ...chats]);
 
-    // Инициализируем пустой массив сообщений для нового чата
+    // Добавляем приветственное сообщение от ассистента
+    const welcomeMessage: Message = {
+      id: crypto.randomUUID(),
+      chat_id: newChat.id,
+      role: 'assistant',
+      content:
+        'Здравствуйте! Я ИИ-помощник по подбору автомобилей.\n\n' +
+        'Расскажите, какой автомобиль вы ищете, и я помогу выбрать ' +
+        'оптимальный вариант. Можете указать:\n' +
+        '• Бюджет\n' +
+        '• Тип кузова (седан, кроссовер, хэтчбек...)\n' +
+        '• Для каких целей нужен автомобиль\n\n' +
+        'Или просто опишите свои пожелания своими словами!',
+      created_at: new Date().toISOString(),
+    };
+
     this.messagesSignal.update((messagesMap) => {
       const newMap = new Map(messagesMap);
-      newMap.set(newChat.id, []);
+      newMap.set(newChat.id, [welcomeMessage]);
       return newMap;
     });
 

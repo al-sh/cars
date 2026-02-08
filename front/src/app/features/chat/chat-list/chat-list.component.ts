@@ -109,12 +109,19 @@ export class ChatListComponent {
   }
 
   /**
-   * Создание нового чата.
-   * Пока заглушка — полная реализация на этапе 13.
+   * Создание нового чата и навигация к нему.
+   *
+   * Цепочка действий:
+   * 1. chatService.createChat() — создаёт чат в состоянии и возвращает объект
+   * 2. router.navigate() — переходит на страницу нового чата
+   *
+   * createChat() возвращает Chat, поэтому мы сразу знаем его ID для навигации.
+   * Это синхронная операция (мок-данные). При подключении бэкенда
+   * станет асинхронной (await httpClient.post(...)).
    */
   onCreateNewChat(): void {
-    // TODO: Этап 13 — создание чата и навигация к нему
-    console.log('Создание нового чата (этап 13)');
+    const newChat = this.chatService.createChat();
+    this.router.navigate(['/chat', newChat.id]);
   }
 
   /**
