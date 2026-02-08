@@ -2,25 +2,19 @@ import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  EventEmitter,
-  inject,
-  Input,
-  Output,
+  input,
+  output,
 } from '@angular/core';
 
 import { Chat } from '../../../../core/models/chat.model';
-import {
-  ChatService,
-  SAVED_CHAT_ID,
-} from '../../../../core/services/chat.service';
 
 /**
  * ChatItemComponent — элемент списка чатов.
  *
- * Это "презентационный" (dumb) компонент:
+ * Это презентационный (dumb) компонент:
  * - Не знает про сервисы и бизнес-логику
- * - Получает все данные через @Input
- * - Сообщает о действиях через @Output
+ * - Получает все данные через input()
+ * - Сообщает о действиях через output()
  *
  * Такой подход упрощает тестирование и переиспользование.
  */
@@ -33,39 +27,31 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatItemComponent {
-  private readonly chatService = inject(ChatService);
-
   /**
-   * Данные чата. required: true означает, что родитель обязан передать это свойство.
-   * Восклицательный знак (!) говорит TypeScript: "я знаю, что значение будет".
+   * input.required() — входные данные, которые обязательны.
+   * Возвращает Signal — типобезопасно и без ! (non-null assertion).
    */
-  @Input({ required: true }) chat!: Chat;
+  readonly chat = input.required<Chat>();
 
   /**
    * Флаг активного (выбранного) чата.
-   * Родительский компонент вычисляет это значение, сравнивая ID.
-   *
-   * Почему передаём готовый boolean, а не ID для сравнения?
-   * - Компонент не должен знать про currentChatId
-   * - Проще тестировать: передал true — должен быть класс active
-   * - Single Responsibility: логика выбора в родителе, отображение здесь
+   * Родитель вычисляет, сравнивая ID — компонент только отображает.
    */
-  @Input() isActive = false;
+  readonly isActive = input(false);
 
   /**
-   * Событие выбора чата.
-   * EventEmitter — это Observable, который можно слушать в шаблоне через (selected)="...".
+   * Флаг чата "Избранное".
+   * Передаётся родителем, чтобы компонент не зависел от ChatService.
    */
-  @Output() selected = new EventEmitter<string>();
+  readonly isFavChat = input(false);
 
   /**
-   * Обработчик клика — эмитит ID чата наверх.
+   * output() — новый API Angular 17+ для событий (замена @Output + EventEmitter).
+   * В шаблоне родителя используется так же: (selected)="onChatSelected($event)"
    */
+  readonly selected = output<string>();
+
   onSelect(): void {
-    this.selected.emit(this.chat.id);
-  }
-
-  get isFavChat() {
-    return this.chat.id === SAVED_CHAT_ID;
+    this.selected.emit(this.chat().id);
   }
 }

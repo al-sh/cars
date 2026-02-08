@@ -172,7 +172,7 @@ import { ChatItemComponent } from '../chat-item/chat-item.component';
 export type Chat = {
   id: string;
   title: string | null;
-  created_at: string;
+  createdAt: string;
 };
 
 function processChat(
@@ -186,7 +186,7 @@ function processChat(
 export type Chat = {
   id: string
   title: string | null
-  created_at: string
+  createdAt: string
 }
 ```
 

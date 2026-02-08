@@ -30,10 +30,10 @@ export class ChatService {
     {
       id: SAVED_CHAT_ID,
       title: 'Saved Messages',
-      user_id: 'mock-user',
-      message_count: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      userId: 'mock-user',
+      messageCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     },
     ...MOCK_CHATS,
   ]);
@@ -160,10 +160,10 @@ export class ChatService {
   sendMessage(chatId: string, content: string): void {
     const newMessage: Message = {
       id: crypto.randomUUID(),
-      chat_id: chatId,
+      chatId: chatId,
       role: 'user',
       content: content.trim(),
-      created_at: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     };
 
     // update() получает текущее значение и должен вернуть новое
@@ -182,8 +182,8 @@ export class ChatService {
         chat.id === chatId
           ? {
               ...chat,
-              message_count: chat.message_count + 1,
-              updated_at: new Date().toISOString(),
+              messageCount: chat.messageCount + 1,
+              updatedAt: new Date().toISOString(),
             }
           : chat,
       ),
@@ -194,7 +194,7 @@ export class ChatService {
 
   saveMessage(message: Message): void {
     const sourceChatTitle = this.chats().find(
-      (chat) => chat.id === message.chat_id,
+      (chat) => chat.id === message.chatId,
     )?.title;
     this.messagesSignal.update((messagesMap) => {
       const newMap = new Map(messagesMap);
@@ -202,9 +202,9 @@ export class ChatService {
       const forwardedMessage: Message = {
         ...message,
         id: crypto.randomUUID(),
-        chat_id: SAVED_CHAT_ID,
+        chatId: SAVED_CHAT_ID,
         forwardedFrom: sourceChatTitle ?? 'Unknown Chat',
-        created_at: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
       };
       newMap.set(SAVED_CHAT_ID, [...savedMessages, forwardedMessage]);
       return newMap;
@@ -221,11 +221,11 @@ export class ChatService {
   createChat(): Chat {
     const newChat: Chat = {
       id: crypto.randomUUID(),
-      user_id: 'mock-user', // TODO: Заменить на реального пользователя
+      userId: 'mock-user', // TODO: Заменить на реального пользователя
       title: null, // Название появится после первого сообщения
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      message_count: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messageCount: 0,
     };
 
     // Добавляем в начало списка (новые чаты сверху)
@@ -234,7 +234,7 @@ export class ChatService {
     // Добавляем приветственное сообщение от ассистента
     const welcomeMessage: Message = {
       id: crypto.randomUUID(),
-      chat_id: newChat.id,
+      chatId: newChat.id,
       role: 'assistant',
       content:
         'Здравствуйте! Я ИИ-помощник по подбору автомобилей.\n\n' +
@@ -244,7 +244,7 @@ export class ChatService {
         '• Тип кузова (седан, кроссовер, хэтчбек...)\n' +
         '• Для каких целей нужен автомобиль\n\n' +
         'Или просто опишите свои пожелания своими словами!',
-      created_at: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     };
 
     this.messagesSignal.update((messagesMap) => {
@@ -274,7 +274,7 @@ export class ChatService {
     this.chatsSignal.update((chats) =>
       chats.map((chat) =>
         chat.id === chatId
-          ? { ...chat, ...updates, updated_at: new Date().toISOString() }
+          ? { ...chat, ...updates, updatedAt: new Date().toISOString() }
           : chat,
       ),
     );

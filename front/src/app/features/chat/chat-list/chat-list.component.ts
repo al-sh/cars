@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { debounceTime, distinctUntilChanged, map } from 'rxjs';
 
-import { ChatService } from '../../../core/services/chat.service';
+import { ChatService, SAVED_CHAT_ID } from '../../../core/services/chat.service';
 import { ChatItemComponent } from './chat-item/chat-item.component';
 
 /**
@@ -28,6 +28,8 @@ import { ChatItemComponent } from './chat-item/chat-item.component';
 export class ChatListComponent {
   private readonly chatService = inject(ChatService);
   private readonly router = inject(Router);
+
+  readonly SAVED_CHAT_ID = SAVED_CHAT_ID;
 
   /**
    * FormControl для поля поиска.

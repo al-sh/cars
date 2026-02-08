@@ -54,6 +54,7 @@
       <app-chat-item
         [chat]="chat"
         [isActive]="chat.id === currentChatId()"
+        [isFavChat]="chat.id === SAVED_CHAT_ID"
         (selected)="onChatSelected($event)"
       />
     } @empty {
