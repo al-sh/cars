@@ -1,0 +1,59 @@
+# application.yml — основная конфигурация Spring Boot.
+#
+# Аналог environment.ts в Angular или .env + dotenv в Express.
+# Spring автоматически читает этот файл при запуске.
+#
+# Профили (application-{profile}.yml) переопределяют значения из этого файла.
+# Запуск с профилем: mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+spring:
+  application:
+    name: carsai-api
+
+  # === Подключение к базе данных ===
+  datasource:
+    # JDBC URL — строка подключения к PostgreSQL.
+    # jdbc:postgresql://хост:порт/имя_базы
+    # В Node.js аналог: postgres://user:password@localhost:5432/carsai
+    url: jdbc:postgresql://localhost:5432/carsai
+    username: carsai
+    password: carsai
+
+    # HikariCP — пул соединений (встроен в Spring Boot).
+    # Поддерживает N открытых соединений к БД, чтобы не открывать/закрывать
+    # на каждый запрос. В Node.js аналог: pg-pool.
+    hikari:
+      maximum-pool-size: 10
+
+  # === JPA (Hibernate) ===
+  jpa:
+    hibernate:
+      # validate — Hibernate НЕ создаёт/изменяет таблицы, только проверяет
+      # что Entity-классы соответствуют существующей схеме.
+      # Схемой управляет Flyway (миграции).
+      #
+      # Другие варианты:
+      # - create-drop: пересоздаёт таблицы при каждом запуске (только для тестов)
+      # - update: автоматически меняет схему (опасно в production)
+      # - none: ничего не делает
+      ddl-auto: validate
+
+    properties:
+      hibernate:
+        # Диалект — говорит Hibernate, какой SQL генерировать.
+        # PostgreSQL имеет свои типы (JSONB, UUID, ARRAY), и диалект их учитывает.
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+    # Показывать SQL-запросы в логах — полезно при отладке.
+    # В production лучше выключить (много логов).
+    show-sql: false
+
+  # === Flyway (миграции БД) ===
+  flyway:
+    enabled: true
+    # Расположение файлов миграций. Spring ищет V1__name.sql, V2__name.sql и т.д.
+    locations: classpath:db/migration
+
+# === Настройки сервера ===
+server:
+  port: 8080

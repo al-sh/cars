@@ -1,0 +1,27 @@
+# application-dev.yml — настройки для локальной разработки.
+#
+# Активируется при запуске с профилем dev:
+#   mvn spring-boot:run -Dspring-boot.run.profiles=dev
+#   или через переменную окружения: SPRING_PROFILES_ACTIVE=dev
+#
+# Значения здесь переопределяют application.yml.
+# Аналогия Angular: environment.development.ts переопределяет environment.ts.
+
+spring:
+  jpa:
+    # В dev-режиме показываем SQL-запросы — удобно для отладки.
+    show-sql: true
+
+    properties:
+      hibernate:
+        # Форматируем SQL для читаемости (вместо одной длинной строки).
+        format_sql: true
+
+# Уровень логирования для разных пакетов.
+# В dev-режиме подробнее — видно, что происходит.
+logging:
+  level:
+    # SQL-параметры (значения, которые подставляются в запросы).
+    # По умолчанию Hibernate показывает SQL с ?, но не значения.
+    # TRACE покажет: binding parameter [1] as [VARCHAR] — ivan@test.com
+    org.hibernate.orm.jdbc.bind: trace

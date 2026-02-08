@@ -212,7 +212,7 @@ Package-by-feature группирует связанный код вместе. 
 
 1. Создать проект через Spring Initializr (start.spring.io) или вручную:
    - Group: `com.carsai`
-   - Artifact: `back`
+   - Artifact: `carsai-api`
    - Java 21, Spring Boot 3.x
    - Зависимости: Spring Web, Spring Data JPA, PostgreSQL Driver, Flyway, Lombok, Validation
 

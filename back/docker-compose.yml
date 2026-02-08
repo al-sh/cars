@@ -1,0 +1,48 @@
+# Docker Compose — поднимает PostgreSQL одной командой.
+#
+# Зачем Docker? Не нужно устанавливать PostgreSQL на свою машину.
+# Контейнер изолирован — не засоряет систему. Можно удалить и поднять заново.
+#
+# Команды:
+#   docker compose up -d     → запустить в фоне
+#   docker compose down      → остановить
+#   docker compose logs -f   → смотреть логи
+#   docker compose down -v   → остановить И удалить данные (volume)
+
+services:
+  postgres:
+    # Alpine — минимальный образ Linux (~5MB вместо ~100MB).
+    # PostgreSQL 16 — актуальная стабильная версия.
+    image: postgres:16-alpine
+
+    # Переменные окружения для инициализации БД.
+    # PostgreSQL создаст базу, пользователя и пароль при первом запуске.
+    environment:
+      POSTGRES_DB: carsai
+      POSTGRES_USER: carsai
+      POSTGRES_PASSWORD: carsai
+
+    # Маппинг портов: host:container
+    # localhost:5432 → контейнер:5432
+    # Spring Boot подключается к localhost:5432 как к обычному PostgreSQL.
+    ports:
+      - "5432:5432"
+
+    # Volume — данные сохраняются между перезапусками контейнера.
+    # Без volume: остановил контейнер — данные потеряны.
+    # С volume: данные живут в Docker volume на диске.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    # Healthcheck — Docker проверяет, что PostgreSQL реально готов принимать соединения.
+    # pg_isready — утилита PostgreSQL, возвращает 0 если БД готова.
+    # Полезно для depends_on в будущем (когда добавим backend в Docker Compose).
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carsai -d carsai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+# Именованный volume — Docker сам управляет расположением на диске.
+volumes:
+  postgres_data:

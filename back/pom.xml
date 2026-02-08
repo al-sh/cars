@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    pom.xml — конфигурация Maven (аналог package.json в Node.js).
+    Описывает:
+    - Метаданные проекта (groupId, artifactId, version)
+    - Родительский проект (spring-boot-starter-parent задаёт версии всех Spring-зависимостей)
+    - Зависимости (аналог "dependencies" в package.json)
+    - Плагины сборки (аналог "scripts" в package.json)
+
+    Команды:
+    - mvn spring-boot:run  → запуск (как npm start)
+    - mvn test             → тесты (как npm test)
+    - mvn package          → сборка JAR (как npm run build)
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        spring-boot-starter-parent — родительский POM от Spring Boot.
+        Задаёт версии всех Spring-зависимостей, чтобы они были совместимы друг с другом.
+        Аналогия: как если бы в package.json был "extends" для версий — не нужно
+        вручную подбирать совместимые версии Spring Web, JPA, Security и т.д.
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.4.3</version>
+        <relativePath/>
+    </parent>
+
+    <!-- Метаданные проекта (аналог "name" и "version" в package.json) -->
+    <groupId>com.carsai</groupId>
+    <artifactId>carsai-api</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>CarsAI API</name>
+    <description>Backend API для ИИ-ассистента подбора автомобилей</description>
+
+    <properties>
+        <!-- Версия Java — компилятор будет использовать фичи Java 21 -->
+        <java.version>21</java.version>
+    </properties>
+
+    <dependencies>
+        <!--
+            spring-boot-starter-web — всё для REST API в одной зависимости:
+            - Встроенный Tomcat (HTTP-сервер, аналог того, что Express сам слушает порт)
+            - Spring MVC (маршрутизация, аналог express.Router())
+            - Jackson (JSON сериализация, аналог body-parser в Express)
+
+            В Node.js для этого нужно: express + body-parser + cors + ...
+            В Spring — одна строка.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!--
+            spring-boot-starter-data-jpa — ORM (Object-Relational Mapping):
+            - Hibernate (реализация JPA) — маппит Java-классы на таблицы БД
+            - Spring Data JPA — генерирует реализацию Repository из интерфейса
+
+            Аналог в Node.js: Prisma или TypeORM.
+            Ты описываешь Entity (класс) → Hibernate генерирует SQL.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!--
+            spring-boot-starter-validation — валидация входных данных:
+            - @NotBlank, @Email, @Size и другие аннотации
+            - Автоматическая проверка DTO при получении запроса
+
+            Аналог в Angular: Validators.required, Validators.email
+            Аналог в Express: express-validator или joi
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!--
+            PostgreSQL JDBC Driver — драйвер для подключения к PostgreSQL.
+            Spring Data JPA использует его «под капотом» для выполнения SQL-запросов.
+
+            runtime scope — нужен только при запуске, не при компиляции.
+            Аналог: pg (node-postgres) в Node.js.
+        -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!--
+            Flyway — миграции базы данных.
+            Каждый файл V{N}__description.sql выполняется ровно один раз.
+            Flyway запоминает, какие миграции уже применены (таблица flyway_schema_history).
+
+            Аналог в Node.js: knex migrate, prisma migrate, или golang-migrate.
+            Это «git для схемы БД» — можно откатить, посмотреть историю.
+        -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <!-- Flyway нужен отдельный модуль для работы с PostgreSQL -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!--
+            Lombok — генерирует boilerplate-код во время компиляции:
+            - @Data → getters, setters, toString, equals, hashCode
+            - @Builder → паттерн Builder
+            - @RequiredArgsConstructor → конструктор из final-полей
+
+            В JavaScript/TypeScript этой проблемы нет — объекты и так доступны.
+            Lombok компенсирует многословность Java.
+
+            optional = true — не попадёт в итоговый JAR (нужен только при компиляции).
+        -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ===== Тестовые зависимости ===== -->
+
+        <!--
+            spring-boot-starter-test — всё для тестирования:
+            - JUnit 5 (фреймворк тестов, аналог Jest/Jasmine)
+            - Mockito (моки, аналог jest.fn() / sinon)
+            - AssertJ (удобные assertions)
+            - MockMvc (эмуляция HTTP-запросов, аналог supertest)
+
+            scope=test — доступно только в тестах, не в production-коде.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+                spring-boot-maven-plugin — плагин для сборки и запуска:
+                - mvn spring-boot:run → запускает приложение с hot-reload
+                - mvn package → собирает executable JAR (один файл со всеми зависимостями)
+
+                Аналог: в Node.js — скрипты в package.json + bundler.
+                Lombok исключаем из итогового JAR — он нужен только при компиляции.
+            -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
