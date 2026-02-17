@@ -31,7 +31,6 @@
 
 - **Подробность:** Лучше больше объяснений, чем меньше
 - **Контекст:** Всегда объяснять "почему", а не только "что"
-- **Сравнения:** Использовать аналогии с Angular-фронтендом и Node.js/Express, где уместно
 - **Примеры:** Приводить примеры запросов/ответов для каждого эндпоинта
 
 ---
@@ -850,7 +849,7 @@ Package-by-feature группирует связанный код вместе. 
 
 3. Создать enum `MessageRole`
 
-5. Создать Entity `Chat`:
+4. Создать Entity `Chat`:
 
    ```java
    @Entity
@@ -896,11 +895,11 @@ Package-by-feature группирует связанный код вместе. 
    }
    ```
 
-6. Создать Entity `Message`
+5. Создать Entity `Message`
 
-7. Создать `ChatRepository` и `MessageRepository`
+6. Создать `ChatRepository` и `MessageRepository`
 
-8. Создать DTO: `ChatDto`, `MessageDto`, `CreateChatRequest`, `UpdateChatRequest`, `SendMessageRequest`
+7. Создать DTO: `ChatDto`, `MessageDto`, `CreateChatRequest`, `UpdateChatRequest`, `SendMessageRequest`
 
 **Изучаемые концепции:**
 
