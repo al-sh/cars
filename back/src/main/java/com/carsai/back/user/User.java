@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 import lombok.AllArgsConstructor;
@@ -121,4 +122,27 @@ public class User {
     // Все запросы к "живым" пользователям фильтруют: WHERE deleted = false
     @Column(nullable = false)
     private boolean deleted;
+
+    // === Lifecycle callbacks ===
+
+    /**
+     * Автоматическая установка значений по умолчанию перед INSERT.
+     *
+     * @PrePersist — JPA lifecycle callback. Вызывается Hibernate
+     * автоматически перед первым сохранением Entity (INSERT).
+     * Аналог в Mongoose: pre('save', function() { ... })
+     *
+     * Устанавливает:
+     * - createdAt = текущий момент времени (если не задан)
+     * - deleted = false (если не задан явно)
+     */
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+        if (!deleted) {
+            deleted = false;
+        }
+    }
 }

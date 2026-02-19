@@ -115,6 +115,21 @@
         </dependency>
 
         <!--
+            spring-boot-starter-security — безопасность и аутентификация:
+            - BCryptPasswordEncoder для хеширования паролей
+            - Security Filter Chain для защиты эндпоинтов
+            - Интеграция с Spring MVC
+
+            Аналог в Node.js: bcrypt + passport + helmet.
+            На этапе 5 используется только для BCryptPasswordEncoder.
+            JWT-фильтр будет добавлен на этапе 7.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!--
             Lombok — генерирует boilerplate-код во время компиляции:
             - @Data → getters, setters, toString, equals, hashCode
             - @Builder → паттерн Builder
