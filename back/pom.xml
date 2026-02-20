@@ -146,6 +146,35 @@
             <optional>true</optional>
         </dependency>
 
+        <!--
+            JJWT — Java JWT библиотека для генерации и валидации JWT-токенов.
+            Состоит из трёх модулей:
+            - jjwt-api:     интерфейсы (то, что используем в коде)
+            - jjwt-impl:    реализация (runtime — не нужна при компиляции)
+            - jjwt-jackson: сериализация claims через Jackson (runtime)
+
+            Аналог в Node.js: пакет jsonwebtoken.
+            jwt.sign(payload, secret) → jjwt: Jwts.builder()...compact()
+            jwt.verify(token, secret) → jjwt: Jwts.parser()...parseSignedClaims(token)
+        -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- ===== Тестовые зависимости ===== -->
 
         <!--
@@ -166,6 +195,33 @@
 
     <build>
         <plugins>
+            <!--
+                maven-compiler-plugin — настройка компилятора Java.
+                Spring Boot parent уже подключает этот плагин, мы только добавляем
+                annotationProcessorPaths — явное объявление процессоров аннотаций.
+
+                Зачем нужен annotationProcessorPaths?
+                - Без него Lombok подхватывается «магически» через classpath.
+                - IDE (особенно NetBeans Language Server, используемый Oracle Java extension
+                  для VS Code) требуют явного объявления, иначе не видят
+                  сгенерированные методы: getId(), getEmail() и т.д.
+                - С явным объявлением и Maven, и любая IDE работают одинаково предсказуемо.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <!-- Версия управляется через Spring Boot BOM -->
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
             <!--
                 spring-boot-maven-plugin — плагин для сборки и запуска:
                 - mvn spring-boot:run → запускает приложение с hot-reload

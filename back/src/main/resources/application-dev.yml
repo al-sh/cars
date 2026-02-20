@@ -17,6 +17,18 @@ spring:
         # Форматируем SQL для читаемости (вместо одной длинной строки).
         format_sql: true
 
+# === JWT (dev-секрет) ===
+#
+# Dev-секрет задаётся здесь, чтобы не требовать JWT_SECRET при локальной разработке.
+# application-dev.yml переопределяет jwt.secret из application.yml.
+#
+# Это Base64-кодировка строки "carsai-dev-secret-key-for-local-development-only"
+# (48 байт → 384 бит → достаточно для HS256/HS384).
+#
+# НЕ использовать в production: ключ публичен (в git-репозитории).
+jwt:
+  secret: Y2Fyc2FpLWRldi1zZWNyZXQta2V5LWZvci1sb2NhbC1kZXZlbG9wbWVudC1vbmx5
+
 # Уровень логирования для разных пакетов.
 # В dev-режиме подробнее — видно, что происходит.
 logging:
