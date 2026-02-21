@@ -1,5 +1,8 @@
 package com.carsai.back.user;
 
+import java.time.Instant;
+import java.util.UUID;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,14 +12,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.Instant;
-import java.util.UUID;
 
 /**
  * Entity-класс пользователя. Маппится на таблицу "users" в PostgreSQL.
@@ -28,11 +27,12 @@ import java.util.UUID;
  * Аналогия Node.js:
  * - Prisma: model User { id String @id @default(uuid()) ... }
  * - Mongoose: new Schema({ email: { type: String, required: true } })
- * - TypeORM: @Entity() class User { @PrimaryGeneratedColumn("uuid") id: string; }
+ * - TypeORM: @Entity() class User { @PrimaryGeneratedColumn("uuid") id: string;
+ * }
  *
  * Аналогия Angular:
  * - Это как тип User из models/user.model.ts, но с аннотациями,
- *   которые говорят Hibernate, как маппить на БД.
+ * которые говорят Hibernate, как маппить на БД.
  *
  * ВАЖНО: Entity — это внутренний объект приложения. Наружу (в API) отдаём DTO.
  * Entity содержит password_hash и другие чувствительные данные.
@@ -40,7 +40,8 @@ import java.util.UUID;
  * Entity ≈ полная модель, DTO ≈ проекция (view model).
  */
 @Entity
-// @Table — задаёт имя таблицы. Без этой аннотации Hibernate использовал бы имя класса ("User"),
+// @Table — задаёт имя таблицы. Без этой аннотации Hibernate использовал бы имя
+// класса ("User"),
 // но "user" — зарезервированное слово в SQL, поэтому явно указываем "users".
 @Table(name = "users")
 // @Data — Lombok-аннотация, генерирует при компиляции:
@@ -48,14 +49,17 @@ import java.util.UUID;
 // - setters для всех полей (setId(), setEmail(), ...)
 // - toString() — для логирования
 // - equals() и hashCode() — для сравнения объектов
-// В JavaScript/TypeScript эта проблема не существует — свойства доступны напрямую.
+// В JavaScript/TypeScript эта проблема не существует — свойства доступны
+// напрямую.
 // Lombok компенсирует многословность Java.
 @Data
 // @NoArgsConstructor — конструктор без аргументов: new User()
 // JPA ТРЕБУЕТ конструктор без аргументов для создания объектов через рефлексию.
-// Когда Hibernate загружает строку из БД, он делает: User user = new User(); user.setEmail("...");
+// Когда Hibernate загружает строку из БД, он делает: User user = new User();
+// user.setEmail("...");
 @NoArgsConstructor
-// @AllArgsConstructor — конструктор со всеми аргументами: new User(id, email, name, ...)
+// @AllArgsConstructor — конструктор со всеми аргументами: new User(id, email,
+// name, ...)
 // Полезен для тестов и ручного создания объектов.
 @AllArgsConstructor
 // @Builder — паттерн Builder для удобного создания:
@@ -99,7 +103,8 @@ public class User {
 
     // === Роль ===
 
-    // @Enumerated(EnumType.STRING) — хранить enum как строку в БД ('CLIENT', 'MANAGER', 'ADMIN').
+    // @Enumerated(EnumType.STRING) — хранить enum как строку в БД ('CLIENT',
+    // 'MANAGER', 'ADMIN').
     // Без этой аннотации Hibernate сохранял бы ПОРЯДКОВЫЙ НОМЕР (0, 1, 2),
     // что ломается при изменении порядка значений в enum.
     // ВСЕГДА используй EnumType.STRING — это безопасно и читаемо в БД.
@@ -118,7 +123,8 @@ public class User {
 
     // Soft delete флаг.
     // false — активный пользователь, true — удалён.
-    // Вместо DELETE FROM users WHERE id = ? делаем UPDATE users SET deleted = true WHERE id = ?
+    // Вместо DELETE FROM users WHERE id = ? делаем UPDATE users SET deleted = true
+    // WHERE id = ?
     // Все запросы к "живым" пользователям фильтруют: WHERE deleted = false
     @Column(nullable = false)
     private boolean deleted;
@@ -129,12 +135,12 @@ public class User {
      * Автоматическая установка значений по умолчанию перед INSERT.
      *
      * @PrePersist — JPA lifecycle callback. Вызывается Hibernate
-     * автоматически перед первым сохранением Entity (INSERT).
-     * Аналог в Mongoose: pre('save', function() { ... })
+     *             автоматически перед первым сохранением Entity (INSERT).
+     *             Аналог в Mongoose: pre('save', function() { ... })
      *
-     * Устанавливает:
-     * - createdAt = текущий момент времени (если не задан)
-     * - deleted = false (если не задан явно)
+     *             Устанавливает:
+     *             - createdAt = текущий момент времени (если не задан)
+     *             - deleted = false (если не задан явно)
      */
     @PrePersist
     protected void onCreate() {
