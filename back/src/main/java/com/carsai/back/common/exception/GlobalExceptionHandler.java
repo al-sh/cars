@@ -86,6 +86,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Чат не найден или не принадлежит текущему пользователю.
+     *
+     * 404 Not Found — стандартный статус для отсутствующего ресурса.
+     * Намеренно не различаем "не существует" и "чужой" — оба дают 404.
+     * Это предотвращает enumeration-атаку: злоумышленник не узнает,
+     * существует ли чат с таким UUID.
+     */
+    @ExceptionHandler(ChatNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleChatNotFound(ChatNotFoundException ex) {
+        return ErrorResponse.of("not_found", "Чат не найден");
+    }
+
+    /**
      * Ошибки валидации Bean Validation (@NotBlank, @Email, @Size и др.).
      *
      * Бросается Spring, когда @Valid не прошла для @RequestBody.
