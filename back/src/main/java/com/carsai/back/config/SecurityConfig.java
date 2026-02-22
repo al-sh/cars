@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -89,6 +90,20 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
+                // CORS — передаём управление нашему CorsConfig (WebMvcConfigurer).
+                //
+                // Customizer.withDefaults() означает: использовать CORS-конфигурацию,
+                // которую Spring нашёл в контексте — то есть наш CorsConfig.addCorsMappings().
+                //
+                // Почему это нужно помимо CorsConfig?
+                // Spring Security стоит ПЕРЕД Spring MVC в цепочке фильтров.
+                // Без этой строки Security перехватит preflight OPTIONS-запрос и вернёт
+                // 401 Unauthorized раньше, чем CorsConfig успеет ответить разрешением.
+                // .cors() говорит Security: "пропусти CORS-обработку через MVC".
+                //
+                // Аналог Express: app.use(cors(...)) должен стоять ПЕРЕД app.use(authMiddleware).
+                .cors(Customizer.withDefaults())
+
                 // CSRF (Cross-Site Request Forgery) отключаем.
                 //
                 // CSRF-атаки возможны только при session-based аутентификации с cookies:
