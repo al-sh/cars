@@ -7,14 +7,38 @@ Server-Sent Events используется для потоковой перед
 ## Endpoint
 
 ```
-GET /api/v1/chats/{chatId}/stream?messageId={messageId}
+GET /api/v1/chats/{chatId}/messages/stream?messageId={messageId}&token={jwt}
 ```
 
 **Headers:**
 ```
 Accept: text/event-stream
-Authorization: Bearer {token}
 ```
+
+---
+
+## Авторизация
+
+Браузерный `EventSource` API не поддерживает кастомные HTTP-заголовки (в том числе `Authorization`). Поэтому JWT передаётся как query parameter.
+
+**Решение:** передавать token через query parameter `token`.
+
+```
+GET /api/v1/chats/{chatId}/messages/stream?messageId={messageId}&token={jwt}
+```
+
+**Backend:**
+- Для SSE эндпоинта: извлекать JWT из query parameter `token` (а не из заголовка `Authorization`)
+- Для всех остальных эндпоинтов: авторизация через заголовок `Authorization: Bearer {token}` как обычно
+- Реализация: отдельный фильтр или условие в существующем `JwtAuthenticationFilter`
+
+**Frontend:**
+- При подключении к SSE добавлять `token` в URL
+- Не использовать `Authorization` заголовок для SSE-запросов
+
+**Безопасность:**
+- Query parameters могут попадать в логи сервера и прокси -- убедиться, что access log nginx не логирует query params полностью, или использовать redaction
+- Токен в URL менее безопасен, чем в заголовке, но это стандартный workaround для SSE/WebSocket и приемлемо для MVP
 
 ---
 
@@ -96,6 +120,17 @@ data: {"code": "llm_timeout", "message": "Превышено время ожид
 | rate_limit | Превышен лимит запросов |
 | internal_error | Внутренняя ошибка сервера |
 
+### title_updated
+
+Обновление title чата (приходит при первом сообщении, если title был null).
+
+```
+event: title_updated
+data: {"chatId": "chat_123", "title": "Подбор кроссовера до 3 млн"}
+```
+
+Событие может прийти в любой момент во время стриминга (генерация title асинхронна). Frontend должен обновить title в списке чатов и в заголовке.
+
 ### ping
 
 Keep-alive сообщение (каждые 15 сек).
@@ -112,7 +147,7 @@ data: {}
 ### Успешный поиск
 
 ```
-→ GET /api/v1/chats/chat_123/stream?messageId=msg_456
+→ GET /api/v1/chats/chat_123/messages/stream?messageId=msg_456&token=eyJ...
 ← Accept: text/event-stream
 
 event: message_start
@@ -195,12 +230,13 @@ data: {"code": "llm_timeout", "message": "Превышено время ожид
 
 ```typescript
 // Типы событий
-type SSEEventType = 
-  | 'message_start' 
-  | 'status' 
-  | 'content_delta' 
-  | 'message_end' 
-  | 'error' 
+type SSEEventType =
+  | 'message_start'
+  | 'status'
+  | 'content_delta'
+  | 'message_end'
+  | 'title_updated'
+  | 'error'
   | 'ping';
 
 interface MessageStartData {
@@ -221,6 +257,11 @@ interface MessageEndData {
   finishReason: 'stop' | 'length';
 }
 
+interface TitleUpdatedData {
+  chatId: string;
+  title: string;
+}
+
 interface SSEErrorData {
   code: string;
   message: string;
@@ -232,9 +273,11 @@ interface SSEErrorData {
 ```typescript
 @Injectable()
 export class ChatService {
-  
+  private authService = inject(AuthService);
+
   streamResponse(chatId: string, messageId: string): Observable<SSEEvent> {
-    const url = `/api/v1/chats/${chatId}/stream?messageId=${messageId}`;
+    const token = this.authService.getToken();
+    const url = `/api/v1/chats/${chatId}/messages/stream?messageId=${messageId}&token=${token}`;
     
     return new Observable(observer => {
       const eventSource = new EventSource(url);
