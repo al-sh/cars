@@ -31,12 +31,12 @@ export class LoginComponent {
     }
 
     const { email, password } = this.form.getRawValue();
-    const result = this.authService.login(email, password);
-
-    if (result === true) {
-      this.router.navigate(['/chat']);
-    } else {
-      this.error.set(result);
-    }
+    this.authService.login(email, password).subscribe(result => {
+      if (result === true) {
+        this.router.navigate(['/chat']);
+      } else {
+        this.error.set(result);
+      }
+    });
   }
 }

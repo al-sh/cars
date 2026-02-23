@@ -113,17 +113,13 @@ export class ChatListComponent {
   /**
    * Создание нового чата и навигация к нему.
    *
-   * Цепочка действий:
-   * 1. chatService.createChat() — создаёт чат в состоянии и возвращает объект
-   * 2. router.navigate() — переходит на страницу нового чата
-   *
-   * createChat() возвращает Chat, поэтому мы сразу знаем его ID для навигации.
-   * Это синхронная операция (мок-данные). При подключении бэкенда
-   * станет асинхронной (await httpClient.post(...)).
+   * createChat() делает POST /api/v1/chats и возвращает Observable<Chat>.
+   * После получения ответа переходим к новому чату.
    */
   onCreateNewChat(): void {
-    const newChat = this.chatService.createChat();
-    this.router.navigate(['/chat', newChat.id]);
+    this.chatService.createChat().subscribe(newChat => {
+      this.router.navigate(['/chat', newChat.id]);
+    });
   }
 
   /**

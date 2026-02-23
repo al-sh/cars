@@ -28,6 +28,8 @@ export class ChatLayoutComponent {
   );
 
   constructor() {
+    this.chatService.loadChats();
+
     effect(() => {
       const id = this.chatId();
       if (id) {

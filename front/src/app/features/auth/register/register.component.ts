@@ -33,13 +33,13 @@ export class RegisterComponent {
     }
 
     const { name, email, password } = this.form.getRawValue();
-    const result = this.authService.register(name, email, password);
-
-    if (result === true) {
-      this.router.navigate(['/chat']);
-    } else {
-      this.error.set(result);
-    }
+    this.authService.register(name, email, password).subscribe(result => {
+      if (result === true) {
+        this.router.navigate(['/chat']);
+      } else {
+        this.error.set(result);
+      }
+    });
   }
 }
 
