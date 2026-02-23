@@ -40,6 +40,9 @@
     <properties>
         <!-- Версия Java — компилятор будет использовать фичи Java 21 -->
         <java.version>21</java.version>
+        <!-- Testcontainers 1.20.5 (из Spring Boot BOM) несовместим с Docker Engine 29+
+             (минимальная версия API поднялась до 1.44). Фикс в 1.21.0+ -->
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 
     <dependencies>
@@ -189,6 +192,40 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+            Testcontainers — поднимает реальные Docker-контейнеры во время тестов.
+            Integration-тесты работают с настоящей PostgreSQL, а не с заглушками.
+
+            Это надёжнее H2/in-memory БД: реальный PostgreSQL ведёт себя иначе
+            (UUID, jsonb, timestamptz, триггеры — всё работает как в production).
+
+            Аналог Node.js: библиотека testcontainers-node.
+            Аналог Angular: нет прямого аналога (фронт не работает с БД напрямую).
+
+            Три модуля:
+            - spring-boot-testcontainers: автоконфигурация Spring Boot (@ServiceConnection)
+            - junit-jupiter: интеграция с JUnit 5 (@Testcontainers, @Container)
+            - postgresql: образ postgres для Testcontainers
+
+            Версии управляются через spring-boot-starter-parent (BOM) —
+            не нужно явно указывать версию, Spring Boot выбирает совместимую.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
