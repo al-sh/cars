@@ -143,6 +143,13 @@ public class SecurityConfig {
                         // AntPathRequestMatcher работает по пути независимо от контроллеров.
                         .requestMatchers(AntPathRequestMatcher.antMatcher("/api/v1/auth/**")).permitAll()
 
+                        // Swagger UI и OpenAPI спецификация — открываем для удобства разработки.
+                        .requestMatchers(
+                                AntPathRequestMatcher.antMatcher("/swagger-ui.html"),
+                                AntPathRequestMatcher.antMatcher("/swagger-ui/**"),
+                                AntPathRequestMatcher.antMatcher("/v3/api-docs/**")
+                        ).permitAll()
+
                         // Все остальные запросы требуют аутентификации.
                         // authenticated() — нужен валидный JWT.
                         // Если токена нет — Spring вернёт 401 Unauthorized автоматически.

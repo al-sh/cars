@@ -70,6 +70,16 @@ jwt:
   # Срок жизни токена. Spring Boot парсит "7d" как Duration.ofDays(7).
   token-expiration: 7d
 
+# === Swagger / OpenAPI ===
+springdoc:
+  swagger-ui:
+    # Swagger UI доступен по /swagger-ui.html
+    path: /swagger-ui.html
+    # Сортировать эндпоинты по методу (GET, POST, PUT, DELETE)
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
+
 # === Настройки сервера ===
 server:
   port: 8080
