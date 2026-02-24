@@ -112,6 +112,12 @@ public class GlobalExceptionHandler {
         return ErrorResponse.of("not_found", "Сообщение не найдено");
     }
 
+    @ExceptionHandler(CarNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleCarNotFound(CarNotFoundException ex) {
+        return ErrorResponse.of("not_found", "Автомобиль не найден");
+    }
+
     /**
      * Доступ запрещён — пользователь аутентифицирован, но не имеет прав.
      *

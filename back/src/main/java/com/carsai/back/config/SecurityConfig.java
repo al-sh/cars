@@ -143,6 +143,9 @@ public class SecurityConfig {
                         // AntPathRequestMatcher работает по пути независимо от контроллеров.
                         .requestMatchers(AntPathRequestMatcher.antMatcher("/api/v1/auth/**")).permitAll()
 
+                        // Каталог автомобилей — публичный, доступен без токена.
+                        .requestMatchers(AntPathRequestMatcher.antMatcher("/api/v1/cars/**")).permitAll()
+
                         // Swagger UI и OpenAPI спецификация — открываем для удобства разработки.
                         .requestMatchers(
                                 AntPathRequestMatcher.antMatcher("/swagger-ui.html"),
