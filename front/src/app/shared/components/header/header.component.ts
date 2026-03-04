@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
@@ -16,9 +16,14 @@ export class HeaderComponent {
   private router = inject(Router);
 
   readonly userName = computed(() => this.authService.user()?.name ?? '');
+  readonly hamburgerClick = output<void>();
 
   logout(): void {
     this.authService.logout();
     this.router.navigate(['/auth/login']);
+  }
+
+  onHamburgerClick(): void {
+    this.hamburgerClick.emit();
   }
 }

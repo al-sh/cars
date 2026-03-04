@@ -1,10 +1,12 @@
-<div class="chat-layout">
-  <app-header />
-  
+<div class="chat-layout" [class.sidebar-open]="sidebarOpen()">
+  <app-header (hamburgerClick)="toggleSidebar()" />
+
+  <div class="sidebar-overlay" (click)="closeSidebar()"></div>
+
   <aside class="sidebar">
     <app-chat-list />
   </aside>
-  
+
   <main class="content">
     <app-chat-window />
   </main>

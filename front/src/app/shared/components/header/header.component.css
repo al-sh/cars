@@ -38,13 +38,23 @@
 }
 
 .hamburger-menu {
-  display: none; /* Будет показан на mobile на этапе 19 */
+  display: none;
   flex-direction: column;
   gap: 4px;
   background: none;
   border: none;
   cursor: pointer;
   padding: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .hamburger-menu {
+    display: flex;
+  }
+
+  .user-name {
+    display: none;
+  }
 }
 
 .hamburger-menu span {

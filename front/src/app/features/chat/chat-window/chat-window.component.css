@@ -9,6 +9,11 @@
   border-top: 1px solid #e2e8f0;
 }
 
+.input-area-inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
 .empty-state {
   display: flex;
   align-items: center;

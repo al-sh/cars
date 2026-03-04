@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { map } from 'rxjs';
@@ -20,6 +20,8 @@ export class ChatLayoutComponent {
   private route = inject(ActivatedRoute);
   private chatService = inject(ChatService);
 
+  readonly sidebarOpen = signal(false);
+
   readonly chatId = toSignal(
     this.route.paramMap.pipe(
       map(params => params.get('id'))
@@ -38,5 +40,13 @@ export class ChatLayoutComponent {
         this.chatService.clearSelection();
       }
     });
+  }
+
+  toggleSidebar(): void {
+    this.sidebarOpen.update(v => !v);
+  }
+
+  closeSidebar(): void {
+    this.sidebarOpen.set(false);
   }
 }

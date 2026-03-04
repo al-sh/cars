@@ -29,3 +29,49 @@ app-header {
   overflow: hidden;
 }
 
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .chat-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "content";
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    height: 100dvh;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    border-right: 1px solid #e2e8f0;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 199;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .chat-layout.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .chat-layout.sidebar-open .sidebar-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
