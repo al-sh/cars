@@ -3,7 +3,6 @@ package com.carsai.back.llm;
 import com.carsai.back.llm.dto.TokenUsage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -15,7 +14,6 @@ public class LlmLogService {
 
     private final LlmLogRepository llmLogRepository;
 
-    @Async
     public void log(UUID chatId, UUID messageId, String requestType,
                     String systemPrompt, String userMessage,
                     String responseContent, TokenUsage tokenUsage,
