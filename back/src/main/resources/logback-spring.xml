@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- ===== Консольный аппендер (стандартный вывод Spring Boot) ===== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5level --- [%15.15t] %-40.40logger{39} : %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ===== Файловый аппендер для REST-логов ===== -->
+    <appender name="REST_LOG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/rest-api.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- Ротация по дням, хранить 30 дней, макс 100MB на файл -->
+            <fileNamePattern>logs/rest-api.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <!-- Только сообщение и перенос строки — аспект сам формирует структуру -->
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ===== Логгер аспекта — пишет ТОЛЬКО в файл, не в консоль ===== -->
+    <logger name="com.carsai.back.config.RestLoggingAspect" level="INFO" additivity="false">
+        <appender-ref ref="REST_LOG_FILE"/>
+    </logger>
+
+    <!-- ===== Root логгер — консоль для всего остального ===== -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <!-- ===== Dev-профиль: SQL параметры в консоль ===== -->
+    <springProfile name="dev">
+        <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
+    </springProfile>
+
+</configuration>

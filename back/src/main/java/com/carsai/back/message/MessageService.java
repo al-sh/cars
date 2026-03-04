@@ -144,14 +144,14 @@ public class MessageService {
     private String processMessage(Chat chat, String content, UUID messageId) {
         UUID chatId = chat.getId();
 
-        // Step 1: Guard — проверка релевантности
-        GuardResult guardResult = llmService.checkRelevance(content, chatId, messageId);
+        // Step 1: Guard — проверка релевантности (с контекстом накопленных критериев)
+        String accumulatedSummary = buildAccumulatedSummary(chat.getAccumulatedCriteria());
+        GuardResult guardResult = llmService.checkRelevance(content, accumulatedSummary, chatId, messageId);
         if (!guardResult.isRelevant()) {
             return guardResult.getRejectionResponse();
         }
 
         // Step 2: Extract — извлечение критериев с учётом накопленных
-        String accumulatedSummary = buildAccumulatedSummary(chat.getAccumulatedCriteria());
         ExtractResult extractResult = llmService.extractCriteria(content, accumulatedSummary,
                 chatId, messageId);
 

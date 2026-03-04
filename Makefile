@@ -41,3 +41,7 @@ db-stop:
 # Логи PostgreSQL
 db-logs:
 	docker compose -f back/docker-compose.yml logs -f
+
+# Логи REST API (запросы, LLM-вызовы, ответы)
+api-logs:
+	tail -f back/logs/rest-api.log

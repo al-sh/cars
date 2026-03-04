@@ -3,6 +3,7 @@ package com.carsai.back.llm;
 import com.carsai.back.car.dto.CarSearchCriteria;
 import com.carsai.back.car.dto.SearchResult;
 import com.carsai.back.config.LLMProperties;
+import com.carsai.back.config.RestLogContext;
 import com.carsai.back.llm.dto.ExtractResult;
 import com.carsai.back.llm.dto.GuardResult;
 import com.carsai.back.llm.dto.LLMResponse;
@@ -83,6 +84,23 @@ public class LLMService {
         return parseGuardResult(response.getContent());
     }
 
+    /**
+     * Проверяет релевантность с учётом контекста активного диалога подбора.
+     * Если в чате уже накоплены критерии — уточняющие фразы считаются релевантными.
+     */
+    public GuardResult checkRelevance(String userMessage, String accumulatedSummary,
+                                      UUID chatId, UUID messageId) {
+        if (accumulatedSummary == null || accumulatedSummary.isBlank()) {
+            return checkRelevance(userMessage, chatId, messageId);
+        }
+        String contextualMessage = "Контекст: пользователь уже подбирает автомобиль. "
+                + "Накопленные критерии: " + accumulatedSummary + ".\n"
+                + "Новое сообщение пользователя: " + userMessage;
+        LLMResponse response = chatWithLogging("guard", GUARD_PROMPT, contextualMessage,
+                0.3, chatId, messageId);
+        return parseGuardResult(response.getContent());
+    }
+
     // ===== Title generation =====
 
     /**
@@ -107,11 +125,13 @@ public class LLMService {
             long durationMs = System.currentTimeMillis() - start;
             llmLogService.log(chatId, messageId, requestType, systemPrompt, userMessage,
                     response.getContent(), response.getTokenUsage(), durationMs, null);
+            RestLogContext.addLlmCall(requestType, userMessage, response.getContent(), durationMs, null);
             return response;
         } catch (Exception e) {
             long durationMs = System.currentTimeMillis() - start;
             llmLogService.log(chatId, messageId, requestType, systemPrompt, userMessage,
                     null, null, durationMs, e.getMessage());
+            RestLogContext.addLlmCall(requestType, userMessage, null, durationMs, e.getMessage());
             throw e;
         }
     }
@@ -221,11 +241,16 @@ public class LLMService {
             - yearMax — год выпуска до
 
             ### Логика работы:
-            1. Если указана цена И минимум 2 дополнительных критерия — установи readyToSearch: true
-            2. Если цена НЕ указана ИЛИ меньше 2 дополнительных критериев — readyToSearch: false и задай уточняющий вопрос
-            3. Извлекай только явно указанные критерии
-            4. НЕ додумывай критерии, которые пользователь не указал
-            5. Задавай не более 2 вопросов за раз
+            1. При наличии блока "Ранее известно" — это накопленные критерии из предыдущих сообщений.
+               Учитывай их при оценке readyToSearch: если в "Ранее известно" уже есть достаточно
+               критериев — readyToSearch: true, даже если текущее сообщение добавляет только одно уточнение
+            2. Если суммарно (с учётом ранее известного) указана цена И минимум 2 доп. критерия —
+               установи readyToSearch: true
+            3. Если суммарно данных недостаточно — readyToSearch: false и задай уточняющий вопрос
+            4. В поле criteria возвращай ТОЛЬКО то, что явно указано в ТЕКУЩЕМ сообщении
+               (накопленные из "Ранее известно" возвращать не нужно — они уже сохранены)
+            5. НЕ додумывай критерии, которые пользователь не указал
+            6. Задавай не более 2 вопросов за раз
 
             ### Нормализация значений:
             - "3 млн", "3 миллиона", "3000000" → 3000000
@@ -283,7 +308,19 @@ public class LLMService {
             Ты — модуль проверки релевантности запросов для сервиса подбора автомобилей.
 
             ## Задача
-            Определить, относится ли запрос пользователя к теме подбора автомобилей.
+            Определить, относится ли сообщение пользователя к теме подбора автомобилей.
+
+            ## Правила
+
+            ### relevant: true если:
+            - Запрос прямо касается выбора, покупки или характеристик автомобиля
+            - Если в сообщении указан контекст с накопленными критериями — уточняющие фразы
+              ("более новый", "подешевле", "другой цвет", "хочу автомат", "ещё варианты")
+              ВСЕГДА релевантны: пользователь продолжает подбор
+
+            ### relevant: false если:
+            - Запрос полностью не связан с автомобилями (анекдот, погода, программирование и т.п.)
+            - При этом контекст подбора отсутствует
 
             ## Ответ (строго JSON, без текста вокруг)
             {"relevant": true|false, "rejectionResponse": string|null}

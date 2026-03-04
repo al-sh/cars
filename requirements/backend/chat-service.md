@@ -66,10 +66,13 @@
 │                    MessageService.processMessage()               │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  1. Сохранить user message в БД                                 │
+│  1. Загрузить accumulated_criteria чата из БД                   │
 │                          │                                       │
 │                          ▼                                       │
 │  2. LLM (Guard) ──► Проверка релевантности                      │
+│     Передаёт: userMessage + accumulatedSummary                  │
+│     (если accumulated не пуст — уточняющие фразы               │
+│      типа "более новый" всегда relevant: true)                  │
 │                          │                                       │
 │            ┌─────────────┴─────────────┐                        │
 │            ▼                           ▼                        │
@@ -77,14 +80,18 @@
 │            │                           │                        │
 │            ▼                           ▼                        │
 │      Return rejection         3. LLM (Extract)                  │
+│                               Передаёт: userMessage             │
+│                               + accumulatedSummary              │
+│                               (ранее известные критерии)        │
 │                                       │                         │
 │                          ┌────────────┴────────────┐            │
 │                          ▼                         ▼            │
 │                 ready_to_search: false    ready_to_search: true │
+│                 (merge partial criteria)           │            │
 │                          │                         │            │
 │                          ▼                         ▼            │
 │                 Return clarification      4. CarService.search()│
-│                 question                          │             │
+│                 question                  (merged criteria)     │
 │                                                   ▼             │
 │                                    ┌──────────────┴──────────┐  │
 │                                    ▼                         ▼  │
@@ -96,9 +103,6 @@
 │                                    └─────────┬───────────────┘  │
 │                                              ▼                   │
 │                                  6. Сохранить assistant message │
-│                                              │                   │
-│                                              ▼                   │
-│                                  7. Stream response to client   │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -122,14 +126,19 @@ Response 201: {
 
 1. Проверить доступ к чату
 2. Сохранить user message (role=USER) в БД
-3. Guard → проверка релевантности
-4. Extract → извлечение критериев (с учётом accumulated_criteria)
-5. Если readyToSearch=false → ответ = clarificationQuestion, мерж частичных критериев
-6. Если readyToSearch=true → мерж критериев → CarService.searchForChat() → Format
-7. Сохранить assistant message (role=ASSISTANT) в БД
-8. Обновить accumulated_criteria в чате
-9. Если первое сообщение — запустить generateTitle асинхронно
-10. Вернуть SendMessageResponse { userMessage, assistantMessage }
+3. Загрузить `accumulatedSummary` из `chat.accumulatedCriteria`
+4. Guard → проверка релевантности (с `accumulatedSummary` как контекстом)
+   - Если `accumulatedSummary` не пуст: уточняющие фразы ("более новый", "подешевле" и т.п.) всегда `relevant: true`
+   - Если `accumulatedSummary` пуст: стандартная проверка без контекста
+5. Extract → извлечение критериев из текущего сообщения (с `accumulatedSummary`)
+   - `readyToSearch` оценивается суммарно: накопленные + новые критерии
+   - В `criteria` возвращаются только новые критерии из текущего сообщения
+6. Мерж новых критериев в `accumulated_criteria` (null-поля не стирают старые)
+7. Если readyToSearch=false → ответ = clarificationQuestion
+8. Если readyToSearch=true → собрать объединённые критерии → CarService.searchForChat() → Format
+9. Сохранить assistant message (role=ASSISTANT) в БД
+10. Если первое сообщение — запустить generateTitle асинхронно
+11. Вернуть SendMessageResponse { userMessage, assistantMessage }
 
 ### Логирование LLM
 
@@ -676,16 +685,19 @@ public class LLMService {
     }
     
     /**
-     * Проверка релевантности запроса (опционально).
+     * Проверка релевантности запроса без контекста (первое сообщение в чате).
      * Режим: Guard (см. domain/llm-prompts.md)
      */
-    public GuardResult checkRelevance(String userMessage) {
-        String systemPrompt = loadPrompt("guard");
-        
-        LLMResponse response = llmProvider.chat(systemPrompt, userMessage, 0.3);
-        
-        return parseGuardResult(response.getContent());
-    }
+    public GuardResult checkRelevance(String userMessage) { ... }
+
+    /**
+     * Проверка релевантности с учётом накопленного контекста диалога.
+     * Если accumulatedSummary не пуст — уточняющие фразы ("более новый",
+     * "подешевле", "хочу автомат") всегда считаются релевантными,
+     * т.к. пользователь продолжает активный подбор автомобиля.
+     * Если accumulatedSummary пуст — делегирует в checkRelevance(userMessage).
+     */
+    public GuardResult checkRelevance(String userMessage, String accumulatedSummary) { ... }
     
     /**
      * Генерация названия чата.
@@ -857,6 +869,30 @@ public class GuardResult {
 ```
 
 **CarSearchCriteria** определён в `contracts/types.md` — единый источник истины для критериев поиска.
+
+---
+
+## Уточнение критериев после получения результатов
+
+После того как пользователь получил список автомобилей, он может уточнять запрос — например:
+- "Хочется более новый"
+- "Покажи только с автоматом"
+- "Что-нибудь подешевле"
+- "Есть что-то от Hyundai?"
+
+### Как это работает
+
+1. `chat.accumulated_criteria` уже содержит критерии из предыдущих сообщений (например: `{priceMax: 2000000, bodyType: "suv", drive: "awd"}`)
+2. Guard получает `accumulatedSummary` → понимает, что пользователь в активном подборе → уточнение релевантно
+3. Extract получает `accumulatedSummary` + текущее уточнение → `readyToSearch: true` (накопленных критериев достаточно) + новый критерий (например, `yearMin: 2022`)
+4. Новый критерий мержится в `accumulated_criteria`
+5. Поиск и форматирование выполняются по объединённым критериям
+
+### Поведение мержа критериев
+
+- Null-значения из нового extract **не стирают** ранее накопленные критерии
+- Ненулевые значения **перезаписывают** старые (пользователь скорректировал параметр)
+- Пример: накоплено `{priceMax: 2000000, drive: "awd"}`, пользователь уточнил "более новый" → extract возвращает `{yearMin: 2022}` → итог: `{priceMax: 2000000, drive: "awd", yearMin: 2022}`
 
 ---
 

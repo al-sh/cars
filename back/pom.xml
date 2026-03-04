@@ -210,6 +210,16 @@
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
+        <!--
+            spring-boot-starter-aop — поддержка AOP (Aspect-Oriented Programming):
+            - Spring AOP + AspectJ weaver
+            - Используется для cross-cutting concerns (логирование REST-запросов)
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- ===== Тестовые зависимости ===== -->
 
         <!--
