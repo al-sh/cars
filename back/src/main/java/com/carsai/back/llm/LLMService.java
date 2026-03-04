@@ -1,5 +1,6 @@
 package com.carsai.back.llm;
 
+import com.carsai.back.car.dto.CarSearchCriteria;
 import com.carsai.back.car.dto.SearchResult;
 import com.carsai.back.config.LLMProperties;
 import com.carsai.back.llm.dto.ExtractResult;
@@ -63,8 +64,9 @@ public class LLMService {
      * Форматирует результаты поиска в читаемый текст для пользователя.
      */
     public String formatResults(String userCriteria, SearchResult searchResult,
+                                CarSearchCriteria appliedCriteria,
                                 UUID chatId, UUID messageId) {
-        String input = buildFormatInput(userCriteria, searchResult);
+        String input = buildFormatInput(userCriteria, searchResult, appliedCriteria);
         LLMResponse response = chatWithLogging("format", FORMAT_PROMPT, input,
                 props.getTemperature().getFormat(), chatId, messageId);
         return response.getContent();
@@ -168,13 +170,20 @@ public class LLMService {
     }
 
     @SuppressWarnings("unchecked")
-    private String buildFormatInput(String userCriteria, SearchResult searchResult) {
+    private String buildFormatInput(String userCriteria, SearchResult searchResult,
+                                    CarSearchCriteria appliedCriteria) {
         List<Map<String, Object>> results = searchResult.items().stream()
                 .<Map<String, Object>>map(car -> objectMapper.convertValue(car, Map.class))
                 .toList();
 
+        Map<String, Object> rawCriteria = objectMapper.convertValue(appliedCriteria, Map.class);
+        Map<String, Object> filteredCriteria = rawCriteria.entrySet().stream()
+                .filter(e -> e.getValue() != null)
+                .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
         Map<String, Object> input = Map.of(
                 "userCriteria", userCriteria,
+                "appliedFilters", filteredCriteria,
                 "resultsCount", searchResult.count(),
                 "results", results
         );
@@ -245,14 +254,26 @@ public class LLMService {
             5. Форматируй цены с разделителями (3 500 000 ₽)
             6. Выделяй ключевые характеристики каждого автомобиля
 
-            ## Формат ответа
-            - Краткое вступление (1 предложение)
+            ## Обязательно: отображение использованных фильтров
+            В ответе ВСЕГДА указывай параметры из поля appliedFilters, по которым выполнялся поиск.
+            Переводи технические названия на понятный русский язык:
+            - priceMin / priceMax → цена (например: "до 3 500 000 ₽" или "от 1 000 000 до 3 500 000 ₽")
+            - bodyType: sedan → седан, suv → внедорожник/кроссовер, hatchback → хэтчбек, wagon → универсал, minivan → минивэн, coupe → купе, pickup → пикап
+            - engineType: petrol → бензин, diesel → дизель, hybrid → гибрид, electric → электро
+            - transmission: manual → механика, automatic → автомат, robot → робот, cvt → вариатор
+            - drive: fwd → передний привод, rwd → задний привод, awd → полный привод
+            - brand → марка
+            - seats → количество мест
+            - yearMin / yearMax → год выпуска
+
+            ## Формат ответа (при наличии результатов)
+            - Краткое вступление (1 предложение) с перечислением применённых фильтров
             - Нумерованный список автомобилей (до 5 штук)
             - Для каждого: название, цена, ключевые характеристики
             - Заключительный вопрос или предложение
 
             ## Если результатов нет
-            Вежливо сообщи, что по заданным критериям ничего не найдено, и предложи:
+            Вежливо сообщи, что по указанным фильтрам (перечисли их) ничего не найдено, и предложи:
             - Увеличить бюджет
             - Расширить критерии поиска
             - Рассмотреть альтернативные варианты

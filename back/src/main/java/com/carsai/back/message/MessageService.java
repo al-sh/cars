@@ -175,7 +175,7 @@ public class MessageService {
         String extractedInfo = extractResult.getExtractedInfo() != null
                 ? extractResult.getExtractedInfo()
                 : accumulatedSummary;
-        return llmService.formatResults(extractedInfo, searchResult, chatId, messageId);
+        return llmService.formatResults(extractedInfo, searchResult, mergedCriteria, chatId, messageId);
     }
 
     /**
