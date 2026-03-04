@@ -151,9 +151,19 @@ public class MessageService {
             return guardResult.getRejectionResponse();
         }
 
-        // Step 2: Extract — извлечение критериев с учётом накопленных
+        // Загружаем историю переписки (до 20 предыдущих сообщений, без текущего)
+        List<Message> recentMessages = messageRepository
+                .findByChatId(chatId, PageRequest.of(0, 21, Sort.by("createdAt").descending()))
+                .stream()
+                .filter(m -> !m.getId().equals(messageId))
+                .limit(20)
+                .toList()
+                .reversed();
+        String conversationHistory = buildConversationHistory(recentMessages);
+
+        // Step 2: Extract — извлечение критериев с учётом накопленных и истории переписки
         ExtractResult extractResult = llmService.extractCriteria(content, accumulatedSummary,
-                chatId, messageId);
+                conversationHistory, chatId, messageId);
 
         // Мерж критериев (даже частичных) в accumulated_criteria
         if (extractResult.getCriteria() != null) {
@@ -176,6 +186,21 @@ public class MessageService {
                 ? extractResult.getExtractedInfo()
                 : accumulatedSummary;
         return llmService.formatResults(extractedInfo, searchResult, mergedCriteria, chatId, messageId);
+    }
+
+    /**
+     * Формирует строку истории переписки для передачи в LLM.
+     * Формат: "Пользователь: ...\nАссистент: ...\n..."
+     */
+    private String buildConversationHistory(List<Message> messages) {
+        if (messages == null || messages.isEmpty()) return null;
+        StringBuilder sb = new StringBuilder();
+        for (Message msg : messages) {
+            String role = msg.getRole() == MessageRole.USER ? "Пользователь" : "Ассистент";
+            if (!sb.isEmpty()) sb.append("\n");
+            sb.append(role).append(": ").append(msg.getContent());
+        }
+        return sb.toString();
     }
 
     /**

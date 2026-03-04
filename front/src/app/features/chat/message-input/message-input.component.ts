@@ -52,20 +52,20 @@ export class MessageInputComponent {
    * Но Angular Reactive Forms дают это из коробки + много дополнительных возможностей.
    */
   messageForm = this.fb.group({
-    content: ['', [Validators.required, Validators.maxLength(4000)]],
+    content: ['', [Validators.required, Validators.maxLength(500)]],
   });
 
   /**
    * Максимальная длина сообщения.
    * Вынесено в константу, чтобы использовать и в валидаторе, и в счётчике символов.
    */
-  readonly maxLength = 4000;
+  readonly maxLength = 500;
 
   /**
    * Порог, после которого показываем счётчик символов.
-   * Показываем заранее (при 3500+), чтобы пользователь видел приближение к лимиту.
+   * Показываем заранее (при 400+), чтобы пользователь видел приближение к лимиту.
    */
-  readonly charCountThreshold = 3500;
+  readonly charCountThreshold = 400;
 
   /**
    * Форма заблокирована, пока бэкенд обрабатывает сообщение через LLM.

@@ -49,12 +49,26 @@ public class LLMService {
      */
     public ExtractResult extractCriteria(String userMessage, String accumulatedSummary,
                                          UUID chatId, UUID messageId) {
-        if (accumulatedSummary == null || accumulatedSummary.isBlank()) {
+        return extractCriteria(userMessage, accumulatedSummary, null, chatId, messageId);
+    }
+
+    /**
+     * Извлекает критерии с учётом накопленных критериев и истории переписки.
+     */
+    public ExtractResult extractCriteria(String userMessage, String accumulatedSummary,
+                                         String conversationHistory, UUID chatId, UUID messageId) {
+        StringBuilder ctx = new StringBuilder();
+        if (conversationHistory != null && !conversationHistory.isBlank()) {
+            ctx.append("История переписки:\n").append(conversationHistory).append("\n\n");
+        }
+        if (accumulatedSummary != null && !accumulatedSummary.isBlank()) {
+            ctx.append("Ранее известно: ").append(accumulatedSummary).append(".\n");
+        }
+        if (ctx.isEmpty()) {
             return extractCriteria(userMessage, chatId, messageId);
         }
-        String contextualMessage = "Ранее известно: " + accumulatedSummary + ".\n"
-                + "Текущее сообщение пользователя: " + userMessage;
-        LLMResponse response = chatWithLogging("extract", EXTRACT_PROMPT, contextualMessage,
+        ctx.append("Текущее сообщение пользователя: ").append(userMessage);
+        LLMResponse response = chatWithLogging("extract", EXTRACT_PROMPT, ctx.toString(),
                 props.getTemperature().getExtract(), chatId, messageId);
         return parseExtractResult(response.getContent());
     }
@@ -241,16 +255,19 @@ public class LLMService {
             - yearMax — год выпуска до
 
             ### Логика работы:
-            1. При наличии блока "Ранее известно" — это накопленные критерии из предыдущих сообщений.
+            1. Если передан блок "История переписки" — это предыдущие сообщения диалога.
+               Используй её для понимания контекста: чего хочет пользователь, что уже обсуждалось,
+               какие уточнения он делает в текущем сообщении.
+            2. При наличии блока "Ранее известно" — это накопленные критерии из предыдущих сообщений.
                Учитывай их при оценке readyToSearch: если в "Ранее известно" уже есть достаточно
-               критериев — readyToSearch: true, даже если текущее сообщение добавляет только одно уточнение
-            2. Если суммарно (с учётом ранее известного) указана цена И минимум 2 доп. критерия —
+               критериев — readyToSearch: true, даже если текущее сообщение добавляет только одно уточнение.
+            3. Если суммарно (с учётом ранее известного) указана цена И минимум 2 доп. критерия —
                установи readyToSearch: true
-            3. Если суммарно данных недостаточно — readyToSearch: false и задай уточняющий вопрос
-            4. В поле criteria возвращай ТОЛЬКО то, что явно указано в ТЕКУЩЕМ сообщении
+            4. Если суммарно данных недостаточно — readyToSearch: false и задай уточняющий вопрос
+            5. В поле criteria возвращай ТОЛЬКО то, что явно указано в ТЕКУЩЕМ сообщении
                (накопленные из "Ранее известно" возвращать не нужно — они уже сохранены)
-            5. НЕ додумывай критерии, которые пользователь не указал
-            6. Задавай не более 2 вопросов за раз
+            6. НЕ додумывай критерии, которые пользователь не указал
+            7. Задавай не более 2 вопросов за раз
 
             ### Нормализация значений:
             - "3 млн", "3 миллиона", "3000000" → 3000000

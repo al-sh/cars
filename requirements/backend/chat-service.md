@@ -130,7 +130,8 @@ Response 201: {
 4. Guard → проверка релевантности (с `accumulatedSummary` как контекстом)
    - Если `accumulatedSummary` не пуст: уточняющие фразы ("более новый", "подешевле" и т.п.) всегда `relevant: true`
    - Если `accumulatedSummary` пуст: стандартная проверка без контекста
-5. Extract → извлечение критериев из текущего сообщения (с `accumulatedSummary`)
+5. Extract → извлечение критериев (с `accumulatedSummary` + `conversationHistory`)
+   - `conversationHistory` — последние 20 сообщений диалога (user/assistant), нужен для понимания контекста: что обсуждалось, какие уточнения делает пользователь
    - `readyToSearch` оценивается суммарно: накопленные + новые критерии
    - В `criteria` возвращаются только новые критерии из текущего сообщения
 6. Мерж новых критериев в `accumulated_criteria` (null-поля не стирают старые)
@@ -659,8 +660,7 @@ public class LLMService {
     private double formatTemperature;
     
     /**
-     * Извлечение критериев поиска из сообщения пользователя.
-     * Режим: Extract (см. domain/llm-prompts.md)
+     * Извлечение критериев поиска (без контекста — первое сообщение).
      */
     public ExtractResult extractCriteria(String userMessage) {
         String systemPrompt = loadPrompt("extract");
@@ -670,6 +670,20 @@ public class LLMService {
         return parseExtractResult(response.getContent());
     }
     
+    /**
+     * Извлечение критериев с накопленным контекстом (без истории переписки).
+     */
+    public ExtractResult extractCriteria(String userMessage, String accumulatedSummary) { ... }
+
+    /**
+     * Извлечение критериев с накопленными критериями и историей переписки.
+     * conversationHistory — последние 20 сообщений (user/assistant), позволяет LLM
+     * понять что обсуждалось и что пользователь хочет уточнить.
+     * Формат: "Пользователь: ...\nАссистент: ...\n..."
+     */
+    public ExtractResult extractCriteria(String userMessage, String accumulatedSummary,
+                                         String conversationHistory) { ... }
+
     /**
      * Форматирование результатов поиска.
      * Режим: Format (см. domain/llm-prompts.md)
@@ -884,7 +898,8 @@ public class GuardResult {
 
 1. `chat.accumulated_criteria` уже содержит критерии из предыдущих сообщений (например: `{priceMax: 2000000, bodyType: "suv", drive: "awd"}`)
 2. Guard получает `accumulatedSummary` → понимает, что пользователь в активном подборе → уточнение релевантно
-3. Extract получает `accumulatedSummary` + текущее уточнение → `readyToSearch: true` (накопленных критериев достаточно) + новый критерий (например, `yearMin: 2022`)
+3. Extract получает `conversationHistory` + `accumulatedSummary` + текущее уточнение → `readyToSearch: true` (накопленных критериев достаточно) + новый критерий (например, `yearMin: 2022`)
+   - История переписки позволяет LLM понять контекст: что уже было показано пользователю, какой ответ ассистент давал, что конкретно пользователь хочет изменить
 4. Новый критерий мержится в `accumulated_criteria`
 5. Поиск и форматирование выполняются по объединённым критериям
 
@@ -903,7 +918,7 @@ public class GuardResult {
 ```java
 public record SendMessageRequest(
     @NotBlank(message = "Сообщение не может быть пустым")
-    @Size(max = 4000, message = "Максимум 4000 символов")
+    @Size(max = 500, message = "Максимум 500 символов")
     String content
 ) {}
 ```
@@ -1067,7 +1082,7 @@ rate-limit:
   messages-per-minute: 10
 
 chat:
-  max-message-length: 4000
+  max-message-length: 500
   default-page-size: 20
   max-page-size: 50
 ```
