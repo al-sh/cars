@@ -143,15 +143,21 @@ public class MessageService {
      */
     private String processMessage(Chat chat, String content, UUID messageId) {
         UUID chatId = chat.getId();
+        long startTotal = System.currentTimeMillis();
+        log.info("[pipeline] chatId={} messageId={} — старт обработки", chatId, messageId);
 
         // Step 1: Guard — проверка релевантности (с контекстом накопленных критериев)
         String accumulatedSummary = buildAccumulatedSummary(chat.getAccumulatedCriteria());
+        long t0 = System.currentTimeMillis();
         GuardResult guardResult = llmService.checkRelevance(content, accumulatedSummary, chatId, messageId);
+        log.info("[pipeline] Guard: {}ms, relevant={}", System.currentTimeMillis() - t0, guardResult.isRelevant());
         if (!guardResult.isRelevant()) {
+            log.info("[pipeline] Guard отклонил запрос, итого: {}ms", System.currentTimeMillis() - startTotal);
             return guardResult.getRejectionResponse();
         }
 
         // Загружаем историю переписки (до 20 предыдущих сообщений, без текущего)
+        t0 = System.currentTimeMillis();
         List<Message> recentMessages = messageRepository
                 .findByChatId(chatId, PageRequest.of(0, 21, Sort.by("createdAt").descending()))
                 .stream()
@@ -160,10 +166,13 @@ public class MessageService {
                 .toList()
                 .reversed();
         String conversationHistory = buildConversationHistory(recentMessages);
+        log.info("[pipeline] История ({}msg): {}ms", recentMessages.size(), System.currentTimeMillis() - t0);
 
         // Step 2: Extract — извлечение критериев с учётом накопленных и истории переписки
+        t0 = System.currentTimeMillis();
         ExtractResult extractResult = llmService.extractCriteria(content, accumulatedSummary,
                 conversationHistory, chatId, messageId);
+        log.info("[pipeline] Extract: {}ms, readyToSearch={}", System.currentTimeMillis() - t0, extractResult.isReadyToSearch());
 
         // Мерж критериев (даже частичных) в accumulated_criteria
         if (extractResult.getCriteria() != null) {
@@ -172,6 +181,7 @@ public class MessageService {
 
         // Step 3: Если недостаточно критериев — вернуть уточняющий вопрос
         if (!extractResult.isReadyToSearch()) {
+            log.info("[pipeline] Недостаточно критериев, итого: {}ms", System.currentTimeMillis() - startTotal);
             return extractResult.getClarificationQuestion() != null
                     ? extractResult.getClarificationQuestion()
                     : "Пожалуйста, уточните параметры автомобиля.";
@@ -179,13 +189,20 @@ public class MessageService {
 
         // Step 4: Собрать объединённые критерии и выполнить поиск
         CarSearchCriteria mergedCriteria = buildMergedCriteria(chat.getAccumulatedCriteria());
+        t0 = System.currentTimeMillis();
         SearchResult searchResult = carService.searchForChat(mergedCriteria, 10);
+        log.info("[pipeline] Search: {}ms, найдено={}", System.currentTimeMillis() - t0, searchResult.count());
 
         // Step 5: Format — форматирование результатов через LLM
         String extractedInfo = extractResult.getExtractedInfo() != null
                 ? extractResult.getExtractedInfo()
                 : accumulatedSummary;
-        return llmService.formatResults(extractedInfo, searchResult, mergedCriteria, chatId, messageId);
+        t0 = System.currentTimeMillis();
+        String formatted = llmService.formatResults(extractedInfo, searchResult, mergedCriteria, chatId, messageId);
+        log.info("[pipeline] Format: {}ms", System.currentTimeMillis() - t0);
+
+        log.info("[pipeline] Итого: {}ms", System.currentTimeMillis() - startTotal);
+        return formatted;
     }
 
     /**
