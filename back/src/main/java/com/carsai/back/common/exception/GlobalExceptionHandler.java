@@ -118,6 +118,31 @@ public class GlobalExceptionHandler {
         return ErrorResponse.of("not_found", "Автомобиль не найден");
     }
 
+    @ExceptionHandler(LLMTimeoutException.class)
+    @ResponseStatus(HttpStatus.GATEWAY_TIMEOUT)
+    public ErrorResponse handleLLMTimeout(LLMTimeoutException ex) {
+        return ErrorResponse.of("llm_timeout", "Превышено время ожидания ответа от ИИ");
+    }
+
+    @ExceptionHandler(LLMUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public ErrorResponse handleLLMUnavailable(LLMUnavailableException ex) {
+        return ErrorResponse.of("llm_unavailable", "Сервис ИИ временно недоступен");
+    }
+
+    @ExceptionHandler(LLMRateLimitException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ErrorResponse handleLLMRateLimit(LLMRateLimitException ex) {
+        return ErrorResponse.of("llm_rate_limit", ex.getMessage());
+    }
+
+    @ExceptionHandler(LLMConfigurationException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleLLMConfiguration(LLMConfigurationException ex) {
+        log.error("LLM configuration error: {}", ex.getMessage());
+        return ErrorResponse.of("llm_config_error", "Ошибка конфигурации сервиса ИИ");
+    }
+
     /**
      * Доступ запрещён — пользователь аутентифицирован, но не имеет прав.
      *

@@ -1,6 +1,7 @@
 package com.carsai.back.car.dto;
 
 import com.carsai.back.car.BodyType;
+import com.carsai.back.car.Car;
 import com.carsai.back.car.DriveType;
 import com.carsai.back.car.EngineType;
 import com.carsai.back.car.Transmission;
@@ -22,4 +23,19 @@ public record CarShortDto(
         int powerHp,
         Transmission transmission,
         DriveType drive
-) {}
+) {
+    public static CarShortDto from(Car car) {
+        return new CarShortDto(
+                car.getId(),
+                car.getBrand(),
+                car.getModel(),
+                car.getYear(),
+                car.getPrice(),
+                car.getBodyType(),
+                car.getEngineType(),
+                car.getPowerHp(),
+                car.getTransmission(),
+                car.getDrive()
+        );
+    }
+}

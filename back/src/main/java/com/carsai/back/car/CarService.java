@@ -47,94 +47,55 @@ public class CarService {
 
     /**
      * Поиск для MessageService: возвращает упрощённый результат для форматирования LLM.
+     * Использует один запрос к БД — Page уже содержит totalElements.
      */
     public SearchResult searchForChat(CarSearchCriteria criteria, int limit) {
         Specification<Car> spec = buildSpecification(criteria);
 
-        List<Car> cars = carRepository.findAll(spec,
+        Page<Car> page = carRepository.findAll(spec,
                 PageRequest.of(0, Math.min(limit, MAX_LLM_RESULTS),
-                        Sort.by("price").ascending()))
-                .getContent();
-
-        long totalCount = carRepository.count(spec);
+                        Sort.by("price").ascending()));
 
         return SearchResult.builder()
-                .count((int) totalCount)
-                .items(cars.stream().map(this::toShortDto).toList())
+                .count((int) page.getTotalElements())
+                .items(page.getContent().stream().map(CarShortDto::from).toList())
                 .build();
     }
 
     private Specification<Car> buildSpecification(CarSearchCriteria criteria) {
-        Specification<Car> spec = Specification.where(null);
-
-        if (criteria.getPriceMin() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.greaterThanOrEqualTo(root.get("price"), criteria.getPriceMin()));
-        }
-        if (criteria.getPriceMax() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.lessThanOrEqualTo(root.get("price"), criteria.getPriceMax()));
-        }
-        if (criteria.getBodyType() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.equal(root.get("bodyType"), criteria.getBodyType()));
-        }
-        if (criteria.getEngineType() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.equal(root.get("engineType"), criteria.getEngineType()));
-        }
-        if (criteria.getBrand() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.equal(cb.lower(root.get("brand")), criteria.getBrand().toLowerCase()));
-        }
-        if (criteria.getYearMin() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.greaterThanOrEqualTo(root.get("year"), criteria.getYearMin()));
-        }
-        if (criteria.getYearMax() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.lessThanOrEqualTo(root.get("year"), criteria.getYearMax()));
-        }
-        if (criteria.getSeats() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.equal(root.get("seats"), criteria.getSeats()));
-        }
-        if (criteria.getTransmission() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.equal(root.get("transmission"), criteria.getTransmission()));
-        }
-        if (criteria.getDrive() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.equal(root.get("drive"), criteria.getDrive()));
-        }
-        if (criteria.getMinPower() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.greaterThanOrEqualTo(root.get("powerHp"), criteria.getMinPower()));
-        }
-        if (criteria.getMaxPower() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.lessThanOrEqualTo(root.get("powerHp"), criteria.getMaxPower()));
-        }
-        if (criteria.getMaxFuelConsumption() != null) {
-            spec = spec.and((root, query, cb) ->
-                    cb.lessThanOrEqualTo(root.get("fuelConsumption"), criteria.getMaxFuelConsumption()));
-        }
-
-        return spec;
+        return Specification
+                .where(gte("price", criteria.getPriceMin()))
+                .and(lte("price", criteria.getPriceMax()))
+                .and(eq("bodyType", criteria.getBodyType()))
+                .and(eq("engineType", criteria.getEngineType()))
+                .and(eqIgnoreCase("brand", criteria.getBrand()))
+                .and(gte("year", criteria.getYearMin()))
+                .and(lte("year", criteria.getYearMax()))
+                .and(eq("seats", criteria.getSeats()))
+                .and(eq("transmission", criteria.getTransmission()))
+                .and(eq("drive", criteria.getDrive()))
+                .and(gte("powerHp", criteria.getMinPower()))
+                .and(lte("powerHp", criteria.getMaxPower()))
+                .and(lte("fuelConsumption", criteria.getMaxFuelConsumption()));
     }
 
-    private CarShortDto toShortDto(Car car) {
-        return new CarShortDto(
-                car.getId(),
-                car.getBrand(),
-                car.getModel(),
-                car.getYear(),
-                car.getPrice(),
-                car.getBodyType(),
-                car.getEngineType(),
-                car.getPowerHp(),
-                car.getTransmission(),
-                car.getDrive()
-        );
+    private <T extends Comparable<T>> Specification<Car> gte(String field, T value) {
+        return value == null ? null
+                : (root, query, cb) -> cb.greaterThanOrEqualTo(root.get(field), value);
+    }
+
+    private <T extends Comparable<T>> Specification<Car> lte(String field, T value) {
+        return value == null ? null
+                : (root, query, cb) -> cb.lessThanOrEqualTo(root.get(field), value);
+    }
+
+    private <T> Specification<Car> eq(String field, T value) {
+        return value == null ? null
+                : (root, query, cb) -> cb.equal(root.get(field), value);
+    }
+
+    private Specification<Car> eqIgnoreCase(String field, String value) {
+        return value == null ? null
+                : (root, query, cb) -> cb.equal(cb.lower(root.get(field)), value.toLowerCase());
     }
 }

@@ -86,6 +86,24 @@ car-catalog:
   max-page-size: 50
   max-results-for-llm: 10
 
+# === LLM интеграция ===
+llm:
+  provider: deepseek
+  api-key: ${DEEPSEEK_API_KEY}
+  base-url: https://api.deepseek.com
+  model: deepseek-chat
+  timeout: 60s
+  max-tokens: 1024
+  temperature:
+    extract: 0.3
+    format: 0.7
+  retry:
+    max-attempts: 3
+    initial-delay: 1s
+
+rate-limit:
+  messages-per-minute: 10
+
 # === Настройки сервера ===
 server:
   port: 8080

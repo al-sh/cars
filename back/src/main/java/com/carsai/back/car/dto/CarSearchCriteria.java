@@ -4,13 +4,17 @@ import com.carsai.back.car.BodyType;
 import com.carsai.back.car.DriveType;
 import com.carsai.back.car.EngineType;
 import com.carsai.back.car.Transmission;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CarSearchCriteria {
     // LLM-извлекаемые критерии
     private Integer priceMin;

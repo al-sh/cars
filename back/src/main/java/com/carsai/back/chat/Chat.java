@@ -17,6 +17,10 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -103,6 +107,16 @@ public class Chat {
 
     @Column(nullable = false)
     private boolean deleted;
+
+    // === LLM контекст ===
+
+    // Накопленные критерии поиска из диалога.
+    // Хранятся как JSONB: {priceMax: 3000000, bodyType: "suv", engineType: "petrol"}
+    // Backend мержит критерии после каждого сообщения и передаёт summary в LLM Extract.
+    // null при создании чата (критериев ещё нет).
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "accumulated_criteria", columnDefinition = "jsonb")
+    private Map<String, Object> accumulatedCriteria;
 
     // === Lifecycle callbacks ===
 
