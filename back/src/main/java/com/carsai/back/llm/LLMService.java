@@ -253,6 +253,11 @@ public class LLMService {
             - drive — тип привода (fwd, rwd, awd)
             - yearMin — год выпуска от
             - yearMax — год выпуска до
+            - powerMin — минимальная мощность (л.с.)
+            - powerMax — максимальная мощность (л.с.)
+            - fuelConsumptionMax — максимальный расход топлива (л/100км)
+            - engineVolumeMin — минимальный объём двигателя (л)
+            - engineVolumeMax — максимальный объём двигателя (л)
 
             ### Логика работы:
             1. Если передан блок "История переписки" — это предыдущие сообщения диалога.
@@ -277,9 +282,15 @@ public class LLMService {
             - "робот", "роботизированная" → "robot"
             - "вариатор", "CVT" → "cvt"
             - "полный привод", "4WD", "AWD" → "awd"
+            - "от 150 л.с.", "минимум 150 лошадей" → powerMin: 150
+            - "до 200 л.с.", "не более 200 л.с." → powerMax: 200
+            - "расход не более 8 л", "не больше 8 л/100км" → fuelConsumptionMax: 8.0
+            - "объём от 2 л", "двигатель 2.0 л и выше" → engineVolumeMin: 2.0
+            - "объём до 1.6 л", "не более 1.6" → engineVolumeMax: 1.6
+            - "двигатель 2.0 л" (точное значение) → engineVolumeMin: 2.0, engineVolumeMax: 2.0
 
             ## Формат ответа (строго JSON, без текста вокруг)
-            {"readyToSearch": true|false, "criteria": {"priceMin": number|null, "priceMax": number|null, "bodyType": string|null, "engineType": string|null, "brand": string|null, "seats": number|null, "transmission": string|null, "drive": string|null, "yearMin": number|null, "yearMax": number|null}, "clarificationQuestion": string|null, "extractedInfo": string}
+            {"readyToSearch": true|false, "criteria": {"priceMin": number|null, "priceMax": number|null, "bodyType": string|null, "engineType": string|null, "brand": string|null, "seats": number|null, "transmission": string|null, "drive": string|null, "yearMin": number|null, "yearMax": number|null, "powerMin": number|null, "powerMax": number|null, "fuelConsumptionMax": number|null, "engineVolumeMin": number|null, "engineVolumeMax": number|null}, "clarificationQuestion": string|null, "extractedInfo": string}
             """;
 
     private static final String FORMAT_PROMPT = """
@@ -307,6 +318,9 @@ public class LLMService {
             - brand → марка
             - seats → количество мест
             - yearMin / yearMax → год выпуска
+            - powerMin / powerMax → мощность (например: "от 150 л.с." или "до 200 л.с.")
+            - fuelConsumptionMax → расход топлива (например: "до 8 л/100км")
+            - engineVolumeMin / engineVolumeMax → объём двигателя
 
             ## Формат ответа (при наличии результатов)
             - Краткое вступление (1 предложение) с перечислением применённых фильтров

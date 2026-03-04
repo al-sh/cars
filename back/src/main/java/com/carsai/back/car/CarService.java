@@ -74,9 +74,11 @@ public class CarService {
                 .and(eq("seats", criteria.getSeats()))
                 .and(eq("transmission", criteria.getTransmission()))
                 .and(eq("drive", criteria.getDrive()))
-                .and(gte("powerHp", criteria.getMinPower()))
-                .and(lte("powerHp", criteria.getMaxPower()))
-                .and(lte("fuelConsumption", criteria.getMaxFuelConsumption()));
+                .and(gte("powerHp", criteria.getPowerMin()))
+                .and(lte("powerHp", criteria.getPowerMax()))
+                .and(lte("fuelConsumption", criteria.getFuelConsumptionMax()))
+                .and(gte("engineVolume", criteria.getEngineVolumeMin()))
+                .and(lte("engineVolume", criteria.getEngineVolumeMax()));
     }
 
     private <T extends Comparable<T>> Specification<Car> gte(String field, T value) {

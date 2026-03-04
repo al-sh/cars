@@ -393,6 +393,21 @@ paths:
           name: yearMax
           schema: { type: integer, nullable: true }
         - in: query
+          name: powerMin
+          schema: { type: integer, minimum: 50, nullable: true }
+        - in: query
+          name: powerMax
+          schema: { type: integer, maximum: 1000, nullable: true }
+        - in: query
+          name: fuelConsumptionMax
+          schema: { type: number, minimum: 2, maximum: 30, nullable: true }
+        - in: query
+          name: engineVolumeMin
+          schema: { type: number, minimum: 0.5, nullable: true }
+        - in: query
+          name: engineVolumeMax
+          schema: { type: number, maximum: 10, nullable: true }
+        - in: query
           name: page
           schema: { type: integer, minimum: 1, default: 1 }
         - in: query

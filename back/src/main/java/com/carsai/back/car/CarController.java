@@ -29,9 +29,11 @@ public class CarController {
             @RequestParam(required = false) Integer seats,
             @RequestParam(required = false) Transmission transmission,
             @RequestParam(required = false) DriveType drive,
-            @RequestParam(required = false) Integer minPower,
-            @RequestParam(required = false) Integer maxPower,
-            @RequestParam(required = false) BigDecimal maxFuelConsumption,
+            @RequestParam(required = false) Integer powerMin,
+            @RequestParam(required = false) Integer powerMax,
+            @RequestParam(required = false) BigDecimal fuelConsumptionMax,
+            @RequestParam(required = false) BigDecimal engineVolumeMin,
+            @RequestParam(required = false) BigDecimal engineVolumeMax,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int perPage
     ) {
@@ -46,9 +48,11 @@ public class CarController {
                 .seats(seats)
                 .transmission(transmission)
                 .drive(drive)
-                .minPower(minPower)
-                .maxPower(maxPower)
-                .maxFuelConsumption(maxFuelConsumption)
+                .powerMin(powerMin)
+                .powerMax(powerMax)
+                .fuelConsumptionMax(fuelConsumptionMax)
+                .engineVolumeMin(engineVolumeMin)
+                .engineVolumeMax(engineVolumeMax)
                 .build();
 
         return carService.search(criteria, page, perPage);

@@ -239,6 +239,11 @@ public class MessageService {
         if (criteria.getDrive() != null) merged.put("drive", criteria.getDrive().name().toLowerCase());
         if (criteria.getYearMin() != null) merged.put("yearMin", criteria.getYearMin());
         if (criteria.getYearMax() != null) merged.put("yearMax", criteria.getYearMax());
+        if (criteria.getPowerMin() != null) merged.put("powerMin", criteria.getPowerMin());
+        if (criteria.getPowerMax() != null) merged.put("powerMax", criteria.getPowerMax());
+        if (criteria.getFuelConsumptionMax() != null) merged.put("fuelConsumptionMax", criteria.getFuelConsumptionMax());
+        if (criteria.getEngineVolumeMin() != null) merged.put("engineVolumeMin", criteria.getEngineVolumeMin());
+        if (criteria.getEngineVolumeMax() != null) merged.put("engineVolumeMax", criteria.getEngineVolumeMax());
 
         chat.setAccumulatedCriteria(merged);
         chatRepository.save(chat);
@@ -261,12 +266,23 @@ public class MessageService {
                 .drive(getEnum(accumulated, "drive", com.carsai.back.car.DriveType.class))
                 .yearMin(getInt(accumulated, "yearMin"))
                 .yearMax(getInt(accumulated, "yearMax"))
+                .powerMin(getInt(accumulated, "powerMin"))
+                .powerMax(getInt(accumulated, "powerMax"))
+                .fuelConsumptionMax(getBigDecimal(accumulated, "fuelConsumptionMax"))
+                .engineVolumeMin(getBigDecimal(accumulated, "engineVolumeMin"))
+                .engineVolumeMax(getBigDecimal(accumulated, "engineVolumeMax"))
                 .build();
     }
 
     private Integer getInt(Map<String, Object> map, String key) {
         Object value = map.get(key);
         if (value instanceof Number n) return n.intValue();
+        return null;
+    }
+
+    private java.math.BigDecimal getBigDecimal(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value instanceof Number n) return java.math.BigDecimal.valueOf(n.doubleValue());
         return null;
     }
 

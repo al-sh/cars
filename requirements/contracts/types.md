@@ -200,6 +200,11 @@ interface CarSearchCriteria {
   drive?: DriveType;
   yearMin?: number;
   yearMax?: number;
+  powerMin?: number;         // л.с.
+  powerMax?: number;         // л.с.
+  fuelConsumptionMax?: number; // л/100км
+  engineVolumeMin?: number;  // литры
+  engineVolumeMax?: number;  // литры
 }
 ```
 
@@ -218,6 +223,11 @@ public class CarSearchCriteria {
     private DriveType drive;
     private Integer yearMin;
     private Integer yearMax;
+    private Integer powerMin;
+    private Integer powerMax;
+    private BigDecimal fuelConsumptionMax;
+    private BigDecimal engineVolumeMin;
+    private BigDecimal engineVolumeMax;
 }
 ```
 

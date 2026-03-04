@@ -16,7 +16,6 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CarSearchCriteria {
-    // LLM-извлекаемые критерии
     private Integer priceMin;
     private Integer priceMax;
     private BodyType bodyType;
@@ -27,9 +26,9 @@ public class CarSearchCriteria {
     private DriveType drive;
     private Integer yearMin;
     private Integer yearMax;
-
-    // Только для REST API, LLM не извлекает
-    private Integer minPower;
-    private Integer maxPower;
-    private BigDecimal maxFuelConsumption;
+    private Integer powerMin;
+    private Integer powerMax;
+    private BigDecimal fuelConsumptionMax;
+    private BigDecimal engineVolumeMin;
+    private BigDecimal engineVolumeMax;
 }
