@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Сервис оркестрации LLM-запросов.
@@ -28,30 +29,31 @@ public class LLMService {
     private final LLMProvider llmProvider;
     private final ObjectMapper objectMapper;
     private final LLMProperties props;
+    private final LlmLogService llmLogService;
 
     // ===== Extract mode =====
 
     /**
      * Извлекает критерии поиска из сообщения пользователя.
      */
-    public ExtractResult extractCriteria(String userMessage) {
-        LLMResponse response = llmProvider.chat(EXTRACT_PROMPT, userMessage,
-                props.getTemperature().getExtract());
+    public ExtractResult extractCriteria(String userMessage, UUID chatId, UUID messageId) {
+        LLMResponse response = chatWithLogging("extract", EXTRACT_PROMPT, userMessage,
+                props.getTemperature().getExtract(), chatId, messageId);
         return parseExtractResult(response.getContent());
     }
 
     /**
      * Извлекает критерии с учётом накопленного контекста диалога.
-     * Формирует user message: "Ранее известно: ... Текущее сообщение: {userMessage}"
      */
-    public ExtractResult extractCriteria(String userMessage, String accumulatedSummary) {
+    public ExtractResult extractCriteria(String userMessage, String accumulatedSummary,
+                                         UUID chatId, UUID messageId) {
         if (accumulatedSummary == null || accumulatedSummary.isBlank()) {
-            return extractCriteria(userMessage);
+            return extractCriteria(userMessage, chatId, messageId);
         }
         String contextualMessage = "Ранее известно: " + accumulatedSummary + ".\n"
                 + "Текущее сообщение пользователя: " + userMessage;
-        LLMResponse response = llmProvider.chat(EXTRACT_PROMPT, contextualMessage,
-                props.getTemperature().getExtract());
+        LLMResponse response = chatWithLogging("extract", EXTRACT_PROMPT, contextualMessage,
+                props.getTemperature().getExtract(), chatId, messageId);
         return parseExtractResult(response.getContent());
     }
 
@@ -60,10 +62,11 @@ public class LLMService {
     /**
      * Форматирует результаты поиска в читаемый текст для пользователя.
      */
-    public String formatResults(String userCriteria, SearchResult searchResult) {
+    public String formatResults(String userCriteria, SearchResult searchResult,
+                                UUID chatId, UUID messageId) {
         String input = buildFormatInput(userCriteria, searchResult);
-        LLMResponse response = llmProvider.chat(FORMAT_PROMPT, input,
-                props.getTemperature().getFormat());
+        LLMResponse response = chatWithLogging("format", FORMAT_PROMPT, input,
+                props.getTemperature().getFormat(), chatId, messageId);
         return response.getContent();
     }
 
@@ -72,8 +75,9 @@ public class LLMService {
     /**
      * Проверяет, относится ли запрос к теме подбора автомобилей.
      */
-    public GuardResult checkRelevance(String userMessage) {
-        LLMResponse response = llmProvider.chat(GUARD_PROMPT, userMessage, 0.3);
+    public GuardResult checkRelevance(String userMessage, UUID chatId, UUID messageId) {
+        LLMResponse response = chatWithLogging("guard", GUARD_PROMPT, userMessage,
+                0.3, chatId, messageId);
         return parseGuardResult(response.getContent());
     }
 
@@ -82,11 +86,32 @@ public class LLMService {
     /**
      * Генерирует короткое название для чата на основе первого сообщения.
      */
-    public String generateTitle(String firstMessage) {
+    public String generateTitle(String firstMessage, UUID chatId) {
         String systemPrompt = "Придумай короткое название (3-5 слов) для чата о подборе автомобиля. "
                 + "Ответь только названием, без кавычек и пояснений.";
-        LLMResponse response = llmProvider.chat(systemPrompt, firstMessage, 0.7);
+        LLMResponse response = chatWithLogging("title", systemPrompt, firstMessage,
+                0.7, chatId, null);
         return response.getContent().trim();
+    }
+
+    // ===== LLM call with logging =====
+
+    private LLMResponse chatWithLogging(String requestType, String systemPrompt,
+                                         String userMessage, double temperature,
+                                         UUID chatId, UUID messageId) {
+        long start = System.currentTimeMillis();
+        try {
+            LLMResponse response = llmProvider.chat(systemPrompt, userMessage, temperature);
+            long durationMs = System.currentTimeMillis() - start;
+            llmLogService.log(chatId, messageId, requestType, systemPrompt, userMessage,
+                    response.getContent(), response.getTokenUsage(), durationMs, null);
+            return response;
+        } catch (Exception e) {
+            long durationMs = System.currentTimeMillis() - start;
+            llmLogService.log(chatId, messageId, requestType, systemPrompt, userMessage,
+                    null, null, durationMs, e.getMessage());
+            throw e;
+        }
     }
 
     // ===== Private helpers =====

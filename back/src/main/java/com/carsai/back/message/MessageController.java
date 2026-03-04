@@ -2,24 +2,32 @@ package com.carsai.back.message;
 
 import java.util.UUID;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.carsai.back.common.dto.CursorResponse;
 import com.carsai.back.message.dto.MessageDto;
+import com.carsai.back.message.dto.SendMessageRequest;
+import com.carsai.back.message.dto.SendMessageResponse;
 import com.carsai.back.security.UserPrincipal;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
  * REST-контроллер сообщений.
  *
  * Эндпоинты:
- *   GET /api/v1/chats/{chatId}/messages — список сообщений (cursor pagination)
+ *   GET  /api/v1/chats/{chatId}/messages — список сообщений (cursor pagination)
+ *   POST /api/v1/chats/{chatId}/messages — отправка сообщения (Guard → Extract → Search → Format)
  *
  * Вложенный маршрут /chats/{chatId}/messages — сообщения принадлежат чату.
  * Доступ ограничен JWT (SecurityConfig: anyRequest().authenticated()).
@@ -52,5 +60,26 @@ public class MessageController {
     ) {
         int clampedLimit = Math.min(limit, 200);
         return messageService.getMessages(chatId, user.getId(), clampedLimit, before);
+    }
+
+    /**
+     * Отправить сообщение в чат.
+     *
+     * POST /api/v1/chats/{chatId}/messages
+     * Body: { "content": "Ищу кроссовер до 3 млн" }
+     *
+     * Синхронно обрабатывает сообщение через LLM pipeline:
+     * Guard → Extract → Search → Format → сохранение.
+     *
+     * @return { userMessage, assistantMessage }
+     */
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public SendMessageResponse sendMessage(
+            @PathVariable UUID chatId,
+            @AuthenticationPrincipal UserPrincipal user,
+            @Valid @RequestBody SendMessageRequest request
+    ) {
+        return messageService.sendMessage(user.getId(), chatId, request.content());
     }
 }

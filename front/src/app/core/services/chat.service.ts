@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, of, tap } from 'rxjs';
+import { EMPTY, Observable, catchError, of, tap } from 'rxjs';
 
 import { Chat } from '../models/chat.model';
 import { Message } from '../models/message.model';
@@ -46,6 +46,7 @@ export class ChatService {
   private chatsSignal = signal<Chat[]>([SAVED_CHAT]);
   private messagesSignal = signal<Map<string, Message[]>>(new Map());
   private currentChatIdSignal = signal<string | null>(null);
+  private assistantLoadingSignal = signal(false);
 
   // ============================================================================
   // ПУБЛИЧНЫЕ READONLY SIGNALS (для чтения компонентами)
@@ -53,6 +54,7 @@ export class ChatService {
 
   readonly chats = this.chatsSignal.asReadonly();
   readonly currentChatId = this.currentChatIdSignal.asReadonly();
+  readonly isAssistantLoading = this.assistantLoadingSignal.asReadonly();
 
   // ============================================================================
   // COMPUTED SIGNALS (производные данные)
@@ -134,36 +136,77 @@ export class ChatService {
   }
 
   /**
-   * Отправляет сообщение пользователя в чат (локально).
-   * TODO: Этап 11 — заменить на HTTP-запрос к бэкенду.
+   * Отправляет сообщение в чат через бэкенд.
+   * Синхронный MVP: POST возвращает userMessage + assistantMessage.
    */
   sendMessage(chatId: string, content: string): void {
-    const newMessage: Message = {
+    const trimmed = content.trim();
+
+    // Оптимистичное добавление user message в UI
+    const tempUserMessage: Message = {
       id: crypto.randomUUID(),
-      chatId: chatId,
+      chatId,
       role: 'user',
-      content: content.trim(),
+      content: trimmed,
       createdAt: new Date().toISOString(),
     };
+    this.addMessage(chatId, tempUserMessage);
+    this.assistantLoadingSignal.set(true);
 
-    this.messagesSignal.update((messagesMap) => {
-      const newMap = new Map(messagesMap);
-      const chatMessages = newMap.get(chatId) ?? [];
-      newMap.set(chatId, [...chatMessages, newMessage]);
+    this.http
+      .post<{ userMessage: Message; assistantMessage: Message }>(
+        `${API_BASE_URL}/chats/${chatId}/messages`,
+        { content: trimmed }
+      )
+      .pipe(
+        catchError(err => {
+          console.error('Ошибка отправки сообщения:', err);
+          this.assistantLoadingSignal.set(false);
+          this.addMessage(chatId, {
+            id: crypto.randomUUID(),
+            chatId,
+            role: 'assistant',
+            content: 'Произошла ошибка при обработке сообщения. Попробуйте ещё раз.',
+            createdAt: new Date().toISOString(),
+          });
+          return EMPTY;
+        }),
+      )
+      .subscribe(response => {
+        this.assistantLoadingSignal.set(false);
+        // Заменяем temp user message на реальный от бэкенда
+        this.replaceMessage(chatId, tempUserMessage.id, response.userMessage);
+        // Добавляем assistant message
+        this.addMessage(chatId, response.assistantMessage);
+        // Обновляем messageCount и updatedAt в списке чатов
+        this.chatsSignal.update(chats =>
+          chats.map(chat =>
+            chat.id === chatId
+              ? { ...chat, messageCount: chat.messageCount + 2, updatedAt: new Date().toISOString() }
+              : chat,
+          ),
+        );
+        // Перезагружаем чаты чтобы подхватить сгенерированный title
+        this.loadChats();
+      });
+  }
+
+  private addMessage(chatId: string, message: Message): void {
+    this.messagesSignal.update(map => {
+      const newMap = new Map(map);
+      const messages = newMap.get(chatId) ?? [];
+      newMap.set(chatId, [...messages, message]);
       return newMap;
     });
+  }
 
-    this.chatsSignal.update((chats) =>
-      chats.map((chat) =>
-        chat.id === chatId
-          ? {
-              ...chat,
-              messageCount: chat.messageCount + 1,
-              updatedAt: new Date().toISOString(),
-            }
-          : chat,
-      ),
-    );
+  private replaceMessage(chatId: string, tempId: string, realMessage: Message): void {
+    this.messagesSignal.update(map => {
+      const newMap = new Map(map);
+      const messages = newMap.get(chatId) ?? [];
+      newMap.set(chatId, messages.map(m => m.id === tempId ? realMessage : m));
+      return newMap;
+    });
   }
 
   saveMessage(message: Message): void {

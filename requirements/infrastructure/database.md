@@ -178,6 +178,35 @@ CREATE INDEX idx_cars_seats ON cars(seats);
 CREATE INDEX idx_cars_search ON cars(body_type, price, year);
 ```
 
+### Таблица llm_logs
+
+Логирование всех запросов/ответов к LLM API. Каждый вызов DeepSeek фиксируется для мониторинга расходов, отладки и аудита.
+
+```sql
+CREATE TABLE llm_logs (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chat_id         UUID REFERENCES chats(id) ON DELETE SET NULL,
+    message_id      UUID REFERENCES messages(id) ON DELETE SET NULL,
+    request_type    VARCHAR(20) NOT NULL,  -- 'guard', 'extract', 'format', 'title'
+    system_prompt   TEXT NOT NULL,
+    user_message    TEXT NOT NULL,
+    response_content TEXT,
+    prompt_tokens   INTEGER,
+    completion_tokens INTEGER,
+    total_tokens    INTEGER,
+    duration_ms     BIGINT,
+    error           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    CONSTRAINT chk_llm_logs_type CHECK (
+        request_type IN ('guard', 'extract', 'format', 'title')
+    )
+);
+
+CREATE INDEX idx_llm_logs_chat_id ON llm_logs(chat_id);
+CREATE INDEX idx_llm_logs_created_at ON llm_logs(created_at DESC);
+```
+
 ---
 
 ## Миграции (Flyway)
@@ -190,7 +219,10 @@ src/main/resources/db/migration/
 ├── V2__create_chats_table.sql
 ├── V3__create_messages_table.sql
 ├── V5__create_cars_table.sql
-└── V7__seed_cars_data.sql
+├── V7__seed_cars_data.sql
+├── V8__add_accumulated_criteria.sql
+├── V9__reset_passwords.sql
+└── V10__create_llm_logs_table.sql
 ```
 
 ---

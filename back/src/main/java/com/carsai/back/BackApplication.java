@@ -2,6 +2,7 @@ package com.carsai.back;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
  * Точка входа Spring Boot приложения.
@@ -25,6 +26,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *   подключает middleware (фильтры), маршрутизацию и DI-контейнер.
  */
 @SpringBootApplication
+@EnableAsync
 public class BackApplication {
 
     public static void main(String[] args) {

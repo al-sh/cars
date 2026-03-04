@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { ChatService } from '../../../core/services/chat.service';
@@ -68,16 +68,12 @@ export class MessageInputComponent {
   readonly charCountThreshold = 3500;
 
   /**
-   * Signal для блокировки формы во время "отправки".
-   *
-   * В реальном приложении отправка — асинхронная операция (HTTP запрос).
-   * Пока ответ не пришёл, форму нужно заблокировать, чтобы предотвратить
-   * повторную отправку. Сейчас это мок — блокируем на 300мс для демонстрации.
-   *
-   * signal(false) — начальное значение: не отправляется.
-   * В React аналог: const [isSending, setIsSending] = useState(false);
+   * Форма заблокирована, пока бэкенд обрабатывает сообщение через LLM.
+   * Привязано к isAssistantLoading из ChatService.
    */
-  readonly isSending = signal(false);
+  get isSending(): boolean {
+    return this.chatService.isAssistantLoading();
+  }
 
   /**
    * Геттер для текущей длины текста.
@@ -145,28 +141,15 @@ export class MessageInputComponent {
    * getRawValue() возвращает текущие значения всех контролов формы.
    */
   onSubmit(): void {
-    if (this.messageForm.invalid || this.isSending()) return;
+    if (this.messageForm.invalid || this.isSending) return;
 
     const { content } = this.messageForm.getRawValue();
-    // content может быть null (из-за типизации FormBuilder), проверяем
     if (!content?.trim()) return;
 
     const chatId = this.chatService.currentChatId();
     if (!chatId) return;
 
-    // Блокируем форму на время отправки
-    this.isSending.set(true);
-
     this.chatService.sendMessage(chatId, content);
-
-    // Сбрасываем форму после отправки.
-    // reset() очищает значения и сбрасывает состояния (dirty, touched).
-    // В React это было бы setContent('').
     this.messageForm.reset();
-
-    // Снимаем блокировку. В реальном приложении это будет в callback/subscribe
-    // после успешного HTTP-ответа. Сейчас — мок с небольшой задержкой.
-    // TODO: Убрать setTimeout при подключении реального API
-    setTimeout(() => this.isSending.set(false), 300);
   }
 }

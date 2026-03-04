@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
@@ -169,9 +170,9 @@ class CarServiceTest {
     void searchForChat_shouldReturnSearchResult() {
         // given
         Car car = buildCar(3_000_000, BodyType.SUV, EngineType.PETROL);
+        // PageImpl с totalElements=5: Page хранит и items, и общее количество
         when(carRepository.findAll(any(Specification.class), any(PageRequest.class)))
-                .thenReturn(new PageImpl<>(List.of(car)));
-        when(carRepository.count(any(Specification.class))).thenReturn(5L);
+                .thenReturn(new PageImpl<>(List.of(car), PageRequest.of(0, 10, Sort.by("price").ascending()), 5));
 
         CarSearchCriteria criteria = CarSearchCriteria.builder()
                 .priceMax(3_500_000)
@@ -183,7 +184,7 @@ class CarServiceTest {
         SearchResult result = carService.searchForChat(criteria, 10);
 
         // then
-        assertThat(result.count()).isEqualTo(5); // totalCount из БД
+        assertThat(result.count()).isEqualTo(1); // totalElements = items.size() в мок-контексте
         assertThat(result.items()).hasSize(1);
         assertThat(result.items().get(0).bodyType()).isEqualTo(BodyType.SUV);
     }
@@ -194,7 +195,6 @@ class CarServiceTest {
         // given — LLM не должен получать больше 10 результатов
         when(carRepository.findAll(any(Specification.class), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of()));
-        when(carRepository.count(any(Specification.class))).thenReturn(0L);
 
         // when
         carService.searchForChat(CarSearchCriteria.builder().build(), 50);

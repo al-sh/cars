@@ -54,7 +54,7 @@
     В React:
       <button disabled={!isValid || isSending}>
   -->
-  <button type="submit" [disabled]="messageForm.invalid || isSending()">
-    {{ isSending() ? 'Отправка...' : 'Отправить' }}
+  <button type="submit" [disabled]="messageForm.invalid || isSending">
+    {{ isSending ? 'Ожидание ответа...' : 'Отправить' }}
   </button>
 </form>

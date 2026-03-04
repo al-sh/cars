@@ -12,10 +12,13 @@ import org.springframework.transaction.annotation.Transactional;
 import com.carsai.back.chat.dto.ChatDto;
 import com.carsai.back.common.dto.PagedResponse;
 import com.carsai.back.common.exception.ChatNotFoundException;
+import com.carsai.back.llm.LLMService;
 import com.carsai.back.user.User;
 import com.carsai.back.user.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 
 /**
  * Сервис чатов — бизнес-логика CRUD операций с чатами.
@@ -32,10 +35,12 @@ import lombok.RequiredArgsConstructor;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChatService {
 
     private final ChatRepository chatRepository;
     private final UserRepository userRepository;
+    private final LLMService llmService;
 
     /**
      * Список чатов пользователя с пагинацией и опциональным поиском по заголовку.
@@ -192,5 +197,27 @@ public class ChatService {
         // а UPDATE chats SET deleted = true WHERE id = ?
         chat.setDeleted(true);
         chatRepository.save(chat);
+    }
+
+    /**
+     * Асинхронно генерирует title чата через LLM на основе первого сообщения.
+     * Вызывается из MessageService после первого сообщения пользователя.
+     * При ошибке — просто логируем, title остаётся null.
+     */
+    @Async
+    @Transactional
+    public void generateTitleAsync(UUID chatId, String firstMessage) {
+        try {
+            String title = llmService.generateTitle(firstMessage, chatId);
+            chatRepository.findById(chatId).ifPresent(chat -> {
+                if (chat.getTitle() == null) {
+                    chat.setTitle(title);
+                    chatRepository.save(chat);
+                    log.info("Generated title for chat {}: {}", chatId, title);
+                }
+            });
+        } catch (Exception e) {
+            log.warn("Failed to generate title for chat {}: {}", chatId, e.getMessage());
+        }
     }
 }

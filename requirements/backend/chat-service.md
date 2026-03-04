@@ -105,6 +105,44 @@
 
 ---
 
+## MVP: синхронный POST endpoint
+
+В MVP-версии отправка сообщения работает синхронно (без SSE-стриминга):
+
+```
+POST /api/v1/chats/{chatId}/messages
+Body: { "content": "..." }
+Response 201: {
+  "userMessage":      { id, chatId, role, content, createdAt },
+  "assistantMessage": { id, chatId, role, content, createdAt }
+}
+```
+
+### Поток обработки (синхронный)
+
+1. Проверить доступ к чату
+2. Сохранить user message (role=USER) в БД
+3. Guard → проверка релевантности
+4. Extract → извлечение критериев (с учётом accumulated_criteria)
+5. Если readyToSearch=false → ответ = clarificationQuestion, мерж частичных критериев
+6. Если readyToSearch=true → мерж критериев → CarService.searchForChat() → Format
+7. Сохранить assistant message (role=ASSISTANT) в БД
+8. Обновить accumulated_criteria в чате
+9. Если первое сообщение — запустить generateTitle асинхронно
+10. Вернуть SendMessageResponse { userMessage, assistantMessage }
+
+### Логирование LLM
+
+Каждый вызов DeepSeek API логируется в таблицу `llm_logs`:
+- Тип запроса (guard/extract/format/title)
+- System prompt + user message
+- Ответ, токены, длительность
+- Ошибка (если произошла)
+
+SSE-стриминг реализуется отдельной задачей после MVP.
+
+---
+
 ## Слой Controller
 
 ### ChatController

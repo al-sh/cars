@@ -33,10 +33,16 @@ class LLMServiceTest {
     @Mock
     private LLMProvider llmProvider;
 
+    @Mock
+    private LlmLogService llmLogService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private static final UUID TEST_CHAT_ID = UUID.randomUUID();
+    private static final UUID TEST_MESSAGE_ID = UUID.randomUUID();
+
     private LLMService serviceUnderTest() {
-        return new LLMService(llmProvider, objectMapper, defaultProps());
+        return new LLMService(llmProvider, objectMapper, defaultProps(), llmLogService);
     }
 
     private LLMProperties defaultProps() {
@@ -68,7 +74,7 @@ class LLMServiceTest {
                 .thenReturn(LLMResponse.builder().content(json).build());
 
         // when
-        ExtractResult result = serviceUnderTest().extractCriteria("Кроссовер до 3 млн, бензин, автомат");
+        ExtractResult result = serviceUnderTest().extractCriteria("Кроссовер до 3 млн, бензин, автомат", TEST_CHAT_ID, TEST_MESSAGE_ID);
 
         // then
         assertThat(result.isReadyToSearch()).isTrue();
@@ -93,7 +99,7 @@ class LLMServiceTest {
                 .thenReturn(LLMResponse.builder().content(json).build());
 
         // when
-        ExtractResult result = serviceUnderTest().extractCriteria("Кроссовер до 3 млн");
+        ExtractResult result = serviceUnderTest().extractCriteria("Кроссовер до 3 млн", TEST_CHAT_ID, TEST_MESSAGE_ID);
 
         // then
         assertThat(result.isReadyToSearch()).isFalse();
@@ -107,7 +113,7 @@ class LLMServiceTest {
                 .thenReturn(LLMResponse.builder().content("Извините, не понимаю вопрос").build());
 
         // when
-        ExtractResult result = serviceUnderTest().extractCriteria("любой запрос");
+        ExtractResult result = serviceUnderTest().extractCriteria("любой запрос", TEST_CHAT_ID, TEST_MESSAGE_ID);
 
         // then — fallback: просим уточнить
         assertThat(result.isReadyToSearch()).isFalse();
@@ -126,7 +132,7 @@ class LLMServiceTest {
                 .thenReturn(LLMResponse.builder().content(wrapped).build());
 
         // when
-        ExtractResult result = serviceUnderTest().extractCriteria("Хочу машину");
+        ExtractResult result = serviceUnderTest().extractCriteria("Хочу машину", TEST_CHAT_ID, TEST_MESSAGE_ID);
 
         // then
         assertThat(result.isReadyToSearch()).isFalse();
@@ -141,7 +147,7 @@ class LLMServiceTest {
                 .thenReturn(LLMResponse.builder().content(json).build());
 
         // when
-        serviceUnderTest().extractCriteria("Бензин, автомат", "кроссовер до 3 000 000 ₽");
+        serviceUnderTest().extractCriteria("Бензин, автомат", "кроссовер до 3 000 000 ₽", TEST_CHAT_ID, TEST_MESSAGE_ID);
 
         // then — убеждаемся что LLM получил контекстуальное сообщение с "Ранее известно"
         verify(llmProvider).chat(anyString(), contains("Ранее известно"), anyDouble());
@@ -157,7 +163,7 @@ class LLMServiceTest {
                 .thenReturn(LLMResponse.builder().content(json).build());
 
         // when
-        GuardResult result = serviceUnderTest().checkRelevance("Хочу купить кроссовер");
+        GuardResult result = serviceUnderTest().checkRelevance("Хочу купить кроссовер", TEST_CHAT_ID, TEST_MESSAGE_ID);
 
         // then
         assertThat(result.isRelevant()).isTrue();
@@ -172,7 +178,7 @@ class LLMServiceTest {
                 .thenReturn(LLMResponse.builder().content(json).build());
 
         // when
-        GuardResult result = serviceUnderTest().checkRelevance("Реши задачу по математике");
+        GuardResult result = serviceUnderTest().checkRelevance("Реши задачу по математике", TEST_CHAT_ID, TEST_MESSAGE_ID);
 
         // then
         assertThat(result.isRelevant()).isFalse();
@@ -186,7 +192,7 @@ class LLMServiceTest {
                 .thenReturn(LLMResponse.builder().content("не JSON").build());
 
         // when
-        GuardResult result = serviceUnderTest().checkRelevance("что-то");
+        GuardResult result = serviceUnderTest().checkRelevance("что-то", TEST_CHAT_ID, TEST_MESSAGE_ID);
 
         // then — при ошибке Guard пропускаем запрос (не блокируем пользователей)
         assertThat(result.isRelevant()).isTrue();
@@ -210,7 +216,7 @@ class LLMServiceTest {
                 .build();
 
         // when
-        String result = serviceUnderTest().formatResults("Кроссовер до 3 млн, автомат", searchResult);
+        String result = serviceUnderTest().formatResults("Кроссовер до 3 млн, автомат", searchResult, TEST_CHAT_ID, TEST_MESSAGE_ID);
 
         // then
         assertThat(result).isEqualTo(expectedText);
@@ -225,7 +231,7 @@ class LLMServiceTest {
                 .thenReturn(LLMResponse.builder().content("  Подбор кроссовера до 3 млн  \n").build());
 
         // when
-        String title = serviceUnderTest().generateTitle("Хочу кроссовер до 3 млн, бензин, автомат");
+        String title = serviceUnderTest().generateTitle("Хочу кроссовер до 3 млн, бензин, автомат", TEST_CHAT_ID);
 
         // then
         assertThat(title).isEqualTo("Подбор кроссовера до 3 млн");

@@ -55,6 +55,10 @@ export class MessageListComponent implements AfterViewChecked {
     return this.chatService.currentMessages;
   }
 
+  get isAssistantLoading() {
+    return this.chatService.isAssistantLoading();
+  }
+
   /**
    * ngAfterViewChecked — вызывается после каждой проверки view компонента.
    *

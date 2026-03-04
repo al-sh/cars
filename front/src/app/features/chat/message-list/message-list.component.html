@@ -18,4 +18,12 @@
       <p>Нет сообщений. Начните диалог!</p>
     </div>
   }
+
+  @if (isAssistantLoading) {
+    <div class="typing-indicator">
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+    </div>
+  }
 </div>
