@@ -16,6 +16,8 @@ back:
 back-stop:
 	kill $$(lsof -ti:8080) 2>/dev/null || true
 
+back-restart: back-stop back	
+
 # Запуск Angular dev-сервера
 front:
 	cd front && npm start

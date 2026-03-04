@@ -75,6 +75,34 @@ export class ChatService {
   // ============================================================================
 
   /**
+   * Загружает сообщения чата с бэкенда (cursor-based пагинация).
+   * Вызывается при выборе чата. Не загружает Saved Messages (локальный чат).
+   *
+   * @param chatId UUID чата
+   */
+  loadMessages(chatId: string): void {
+    if (chatId === SAVED_CHAT_ID) return;
+
+    this.http
+      .get<{ items: Message[]; hasMore: boolean }>(
+        `${API_BASE_URL}/chats/${chatId}/messages?limit=50`
+      )
+      .pipe(
+        catchError(err => {
+          console.error('Ошибка загрузки сообщений:', err);
+          return of({ items: [] as Message[], hasMore: false });
+        }),
+      )
+      .subscribe(response => {
+        this.messagesSignal.update(map => {
+          const newMap = new Map(map);
+          newMap.set(chatId, response.items);
+          return newMap;
+        });
+      });
+  }
+
+  /**
    * Загружает список чатов пользователя с бэкенда.
    * Вызывается при инициализации чат-страницы.
    */
@@ -94,6 +122,7 @@ export class ChatService {
 
   selectChat(chatId: string): void {
     this.currentChatIdSignal.set(chatId);
+    this.loadMessages(chatId);
   }
 
   clearSelection(): void {
