@@ -28,10 +28,7 @@ COPY front/nginx.conf.template /etc/nginx/nginx.conf.template
 # Angular 19 кладёт результат сборки в dist/ui/browser
 COPY --from=build /app/dist/ui/browser /usr/share/nginx/html
 
-# envsubst заменяет только ${PORT}, ${BACKEND_HOST}, ${BACKEND_PORT}.
-# Nginx-переменные ($host, $uri и т.д.) остаются нетронутыми.
-CMD ["/bin/sh", "-c", \
-  "envsubst '${PORT} ${BACKEND_HOST} ${BACKEND_PORT}' \
-   < /etc/nginx/nginx.conf.template \
-   > /etc/nginx/nginx.conf \
-   && nginx -g 'daemon off;'"]
+COPY front/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
