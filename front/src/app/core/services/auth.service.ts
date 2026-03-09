@@ -2,11 +2,11 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, catchError, map, of, tap } from 'rxjs';
 
+import { API_BASE_URL } from '../api';
 import { User } from '../models/user.model';
 
 const USER_KEY = 'carsai_user';
 const TOKEN_KEY = 'carsai_token';
-const API_BASE_URL = 'http://localhost:8080/api/v1';
 
 type AuthApiResponse = {
   user: {

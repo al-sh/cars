@@ -2,12 +2,11 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { EMPTY, Observable, catchError, of, tap } from 'rxjs';
 
+import { API_BASE_URL } from '../api';
 import { Chat } from '../models/chat.model';
 import { Message } from '../models/message.model';
 
 export const SAVED_CHAT_ID = 'saved';
-
-const API_BASE_URL = 'http://localhost:8080/api/v1';
 
 type PagedResponse<T> = {
   items: T[];
