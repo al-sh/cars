@@ -13,11 +13,16 @@ export BACKEND_PORT="${BACKEND_PORT:-8080}"
 
 # Читаем DNS-резолвер из /etc/resolv.conf — единственный надёжный способ
 # получить актуальный адрес в любом контейнерном окружении (Railway, Docker и т.д.).
-export RESOLVER=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf)
-if [ -z "$RESOLVER" ]; then
+_resolver=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf)
+if [ -z "$_resolver" ]; then
   echo "ERROR: could not determine DNS resolver from /etc/resolv.conf" >&2
   exit 1
 fi
+# nginx требует IPv6-адреса в квадратных скобках: [fd12::10]
+case "$_resolver" in
+  *:*) export RESOLVER="[$_resolver]" ;;
+  *)   export RESOLVER="$_resolver" ;;
+esac
 
 # Подставляем переменные в шаблон nginx.
 # Явный список гарантирует, что nginx-переменные ($host, $uri и т.д.) остаются нетронутыми.
