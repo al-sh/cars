@@ -10,6 +10,9 @@ server:
   # Railway сам назначает порт через $PORT.
   # Дефолт 8080 — для локального запуска этого профиля без Railway.
   port: ${PORT:8080}
+  # Railway private network использует IPv6 (fd12::/10).
+  # :: — IPv6-wildcard, принимает подключения на всех интерфейсах (IPv4 + IPv6).
+  address: "::"
 
 spring:
   datasource:
