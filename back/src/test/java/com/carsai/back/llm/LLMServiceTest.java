@@ -8,6 +8,7 @@ import com.carsai.back.car.BodyType;
 import com.carsai.back.car.DriveType;
 import com.carsai.back.car.EngineType;
 import com.carsai.back.car.Transmission;
+import com.carsai.back.car.dto.CarSearchCriteria;
 import com.carsai.back.car.dto.CarShortDto;
 import com.carsai.back.car.dto.SearchResult;
 import com.carsai.back.config.LLMProperties;
@@ -216,7 +217,7 @@ class LLMServiceTest {
                 .build();
 
         // when
-        String result = serviceUnderTest().formatResults("Кроссовер до 3 млн, автомат", searchResult, TEST_CHAT_ID, TEST_MESSAGE_ID);
+        String result = serviceUnderTest().formatResults("Кроссовер до 3 млн, автомат", searchResult, CarSearchCriteria.builder().build(), TEST_CHAT_ID, TEST_MESSAGE_ID);
 
         // then
         assertThat(result).isEqualTo(expectedText);

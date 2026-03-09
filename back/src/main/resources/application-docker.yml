@@ -1,0 +1,24 @@
+# application-docker.yml — настройки для запуска в Docker Compose.
+#
+# Активируется через переменную окружения:
+#   SPRING_PROFILES_ACTIVE=docker
+#
+# Переопределяет application.yml: меняет хост БД с localhost на имя
+# Docker-сервиса (postgres) и убирает show-sql для production-окружения.
+
+spring:
+  datasource:
+    # В Docker Compose сервисы обращаются друг к другу по имени сервиса,
+    # а не по localhost. DB_HOST задаётся в docker-compose.yml как "postgres".
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    show-sql: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

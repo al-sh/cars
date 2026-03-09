@@ -1,0 +1,30 @@
+# application-railway.yml — настройки для деплоя на Railway.
+#
+# Активируется через переменную окружения (задаётся в Railway dashboard):
+#   SPRING_PROFILES_ACTIVE=railway
+#
+# Railway предоставляет PostgreSQL через стандартные PG* переменные.
+# PORT задаётся Railway автоматически — приложение должно слушать именно его.
+
+server:
+  # Railway сам назначает порт через $PORT.
+  # Дефолт 8080 — для локального запуска этого профиля без Railway.
+  port: ${PORT:8080}
+
+spring:
+  datasource:
+    # Railway PostgreSQL add-on предоставляет стандартные PG* переменные.
+    # Их не нужно задавать вручную — они появляются автоматически при
+    # подключении сервиса PostgreSQL к проекту в Railway dashboard.
+    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
+
+  jpa:
+    show-sql: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

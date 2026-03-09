@@ -1,0 +1,65 @@
+services:
+  # Frontend (Angular SPA) + Reverse proxy (nginx)
+  # Контекст сборки — корень проекта, чтобы Dockerfile мог обратиться
+  # и к front/ (исходники), и к nginx/ (конфиг).
+  frontend:
+    build:
+      context: .
+      dockerfile: front/Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - carsai
+
+  # Backend (Spring Boot)
+  backend:
+    build:
+      context: back
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: carsai
+      DB_USERNAME: carsai
+      DB_PASSWORD: ${DB_PASSWORD:-carsai}
+      JWT_SECRET: ${JWT_SECRET}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - carsai
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Database (PostgreSQL)
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: carsai
+      POSTGRES_USER: carsai
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-carsai}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - carsai
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carsai -d carsai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  carsai:
+    driver: bridge
+
+volumes:
+  postgres_data:

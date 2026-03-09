@@ -1,0 +1,37 @@
+# Dockerfile.railway — образ frontend для Railway.
+#
+# Отличия от Dockerfile (локального):
+# - слушает на $PORT (Railway назначает динамически), а не на 80
+# - адрес backend берётся из $BACKEND_HOST и $BACKEND_PORT
+# - envsubst подставляет эти переменные в nginx.conf при старте контейнера
+#
+# Контекст сборки: корень проекта (context: .)
+#   railway.json → services.frontend.builder.buildContextPath = "."
+
+# Build stage
+FROM node:20-alpine AS build
+WORKDIR /app
+
+COPY front/package*.json ./
+RUN npm ci --quiet
+
+COPY front/ .
+RUN npm run build
+
+# Runtime stage
+FROM nginx:alpine
+
+# gettext предоставляет envsubst — подстановку переменных окружения в шаблоны
+RUN apk add --no-cache gettext
+
+COPY front/nginx.conf.template /etc/nginx/nginx.conf.template
+# Angular 19 кладёт результат сборки в dist/ui/browser
+COPY --from=build /app/dist/ui/browser /usr/share/nginx/html
+
+# envsubst заменяет только ${PORT}, ${BACKEND_HOST}, ${BACKEND_PORT}.
+# Nginx-переменные ($host, $uri и т.д.) остаются нетронутыми.
+CMD ["/bin/sh", "-c", \
+  "envsubst '${PORT} ${BACKEND_HOST} ${BACKEND_PORT}' \
+   < /etc/nginx/nginx.conf.template \
+   > /etc/nginx/nginx.conf \
+   && nginx -g 'daemon off;'"]

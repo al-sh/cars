@@ -91,9 +91,9 @@ class CarServiceTest {
                 .seats(5)
                 .transmission(Transmission.AUTOMATIC)
                 .drive(DriveType.AWD)
-                .minPower(150)
-                .maxPower(250)
-                .maxFuelConsumption(BigDecimal.valueOf(9.0))
+                .powerMin(150)
+                .powerMax(250)
+                .fuelConsumptionMax(BigDecimal.valueOf(9.0))
                 .build();
 
         // when

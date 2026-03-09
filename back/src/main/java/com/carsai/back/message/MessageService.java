@@ -303,7 +303,6 @@ public class MessageService {
         return null;
     }
 
-    @SuppressWarnings("unchecked")
     private <E extends Enum<E>> E getEnum(Map<String, Object> map, String key, Class<E> enumClass) {
         Object value = map.get(key);
         if (value instanceof String s) {
