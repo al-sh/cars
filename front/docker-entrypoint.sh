@@ -11,10 +11,17 @@ fi
 # Дефолт 8080 совпадает с fallback-ом в application-railway.yml (${PORT:8080}).
 export BACKEND_PORT="${BACKEND_PORT:-8080}"
 
+# Читаем DNS-резолвер из /etc/resolv.conf — единственный надёжный способ
+# получить актуальный адрес в любом контейнерном окружении (Railway, Docker и т.д.).
+export RESOLVER=$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf)
+if [ -z "$RESOLVER" ]; then
+  echo "ERROR: could not determine DNS resolver from /etc/resolv.conf" >&2
+  exit 1
+fi
+
 # Подставляем переменные в шаблон nginx.
-# Явный список '$PORT $BACKEND_HOST $BACKEND_PORT' гарантирует, что
-# nginx-переменные ($host, $uri, $remote_addr и т.д.) остаются нетронутыми.
-envsubst '$PORT $BACKEND_HOST $BACKEND_PORT' \
+# Явный список гарантирует, что nginx-переменные ($host, $uri и т.д.) остаются нетронутыми.
+envsubst '$PORT $BACKEND_HOST $BACKEND_PORT $RESOLVER' \
   < /etc/nginx/nginx.conf.template \
   > /etc/nginx/nginx.conf
 

@@ -15,9 +15,10 @@ http {
     sendfile on;
     keepalive_timeout 65;
 
-    # Railway internal DNS — перерезолвить upstream каждые 10 секунд.
-    # Без этого nginx кеширует IP при старте, и после рестарта backend'а соединение ломается.
-    resolver 127.0.0.11 valid=10s ipv6=on;
+    # DNS-резолвер читается из /etc/resolv.conf в docker-entrypoint.sh.
+    # Это единственный надёжный способ: Railway не предоставляет 127.0.0.11 (Docker Compose DNS).
+    # valid=10s — перерезолвить upstream каждые 10 секунд, чтобы не кешировать старый IP.
+    resolver ${RESOLVER} valid=10s ipv6=on;
 
     gzip on;
     gzip_types text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml text/javascript;
