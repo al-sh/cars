@@ -1,15 +1,15 @@
 #!/bin/sh
 set -e
 
-# Проверяем, что обязательные переменные заданы
+# BACKEND_HOST обязателен — без него некуда проксировать запросы
 if [ -z "$BACKEND_HOST" ]; then
   echo "ERROR: BACKEND_HOST is not set" >&2
   exit 1
 fi
-if [ -z "$BACKEND_PORT" ]; then
-  echo "ERROR: BACKEND_PORT is not set" >&2
-  exit 1
-fi
+
+# BACKEND_PORT — Railway задаёт через ${{backend.PORT}}.
+# Дефолт 8080 совпадает с fallback-ом в application-railway.yml (${PORT:8080}).
+BACKEND_PORT="${BACKEND_PORT:-8080}"
 
 # Подставляем переменные в шаблон nginx.
 # Явный список '$PORT $BACKEND_HOST $BACKEND_PORT' гарантирует, что
