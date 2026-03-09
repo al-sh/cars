@@ -9,7 +9,7 @@ fi
 
 # BACKEND_PORT — Railway задаёт через ${{backend.PORT}}.
 # Дефолт 8080 совпадает с fallback-ом в application-railway.yml (${PORT:8080}).
-BACKEND_PORT="${BACKEND_PORT:-8080}"
+export BACKEND_PORT="${BACKEND_PORT:-8080}"
 
 # Подставляем переменные в шаблон nginx.
 # Явный список '$PORT $BACKEND_HOST $BACKEND_PORT' гарантирует, что
